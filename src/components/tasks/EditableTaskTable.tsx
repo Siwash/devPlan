@@ -93,6 +93,7 @@ export const EditableTaskTable: React.FC<EditableTaskTableProps> = ({
     };
     fillDragRef.current = state;
     setFillDrag(state);
+    document.body.classList.add('fill-dragging');
 
     const handleMouseMove = (e: MouseEvent) => {
       requestAnimationFrame(() => {
@@ -126,6 +127,7 @@ export const EditableTaskTable: React.FC<EditableTaskTableProps> = ({
     const handleMouseUp = async () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.body.classList.remove('fill-dragging');
       const dragState = fillDragRef.current;
       fillDragRef.current = null;
       setFillDrag(null);
@@ -400,6 +402,7 @@ export const EditableTaskTable: React.FC<EditableTaskTableProps> = ({
       rowClassName={(record) => {
         const classes: string[] = [];
         if (highlightSet.has(record.id)) classes.push('ai-highlighted-row');
+        if (fillDrag && record.id === fillDrag.sourceTaskId && fillDrag.targetTaskIds.length > 0) classes.push('fill-drag-source');
         if (fillTargetSet.has(record.id)) classes.push('fill-drag-target');
         return classes.join(' ');
       }}
