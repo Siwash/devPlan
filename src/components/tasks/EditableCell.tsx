@@ -36,6 +36,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<any>(value);
   const inputRef = useRef<any>(null);
+  const fillDraggingRef = useRef(false);
 
   // Keep draft in sync when external value changes while not editing
   useEffect(() => {
@@ -96,6 +97,11 @@ export const EditableCell: React.FC<EditableCellProps> = ({
           position: 'relative',
         }}
         onClick={() => {
+          // Don't enter edit mode if a fill drag just happened
+          if (fillDraggingRef.current) {
+            fillDraggingRef.current = false;
+            return;
+          }
           if (editable) setEditing(true);
         }}
       >
@@ -106,7 +112,15 @@ export const EditableCell: React.FC<EditableCellProps> = ({
             onMouseDown={(e) => {
               e.stopPropagation();
               e.preventDefault();
+              fillDraggingRef.current = true;
               onFillHandleMouseDown(e);
+              // Reset flag after mouseup so click is blocked
+              const reset = () => {
+                // Small delay so the click event fires first and sees the flag
+                setTimeout(() => { fillDraggingRef.current = false; }, 100);
+                document.removeEventListener('mouseup', reset);
+              };
+              document.addEventListener('mouseup', reset);
             }}
           />
         )}

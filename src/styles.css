@@ -189,19 +189,27 @@ body {
 /* Fill handle for Excel-like drag fill */
 .fill-handle {
   position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 7px;
-  height: 7px;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
   background: #1677ff;
+  border: 1px solid #fff;
   cursor: crosshair;
   z-index: 10;
   opacity: 0;
   transition: opacity 0.15s;
+  /* Larger invisible click area via box-shadow */
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0);
 }
 
 .editable-cell-wrapper:hover .fill-handle {
   opacity: 1;
+}
+
+/* Ensure table cells don't clip the fill handle */
+.ant-table-cell {
+  overflow: visible !important;
 }
 
 /* Fill drag target highlight */
