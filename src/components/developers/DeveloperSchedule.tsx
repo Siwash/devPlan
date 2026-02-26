@@ -3,7 +3,9 @@ import { Card, Typography, Select, Alert, Spin, Empty, Tag, Tooltip, DatePicker,
 import { WarningOutlined, SyncOutlined } from '@ant-design/icons';
 import { calendarApi } from '../../lib/api';
 import { useDeveloperStore } from '../../stores/developerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import type { DeveloperWorkload } from '../../lib/types';
+import { formatHours } from '../../lib/formatHours';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -13,6 +15,7 @@ const DEV_COLORS = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96', '#13c
 
 export const DeveloperSchedule: React.FC = () => {
   const { developers, fetchDevelopers } = useDeveloperStore();
+  const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
   const [selectedDevIds, setSelectedDevIds] = useState<number[]>([]);
   const [workloadMap, setWorkloadMap] = useState<Record<number, DeveloperWorkload[]>>({});
   const [loading, setLoading] = useState(false);
@@ -196,7 +199,7 @@ export const DeveloperSchedule: React.FC = () => {
               description={
                 <div style={{ maxHeight: 100, overflow: 'auto' }}>
                   {allOverloadDays.slice(0, 20).map((d, i) =>
-                    <div key={i}>{d.devName} - {d.date}: 已分配 {d.allocated.toFixed(1)}h / 最大 {d.max}h</div>
+                    <div key={i}>{d.devName} - {d.date}: 已分配 {formatHours(d.allocated, workHoursConfig)} / 最大 {formatHours(d.max, workHoursConfig)}</div>
                   )}
                   {allOverloadDays.length > 20 && <div>...还有 {allOverloadDays.length - 20} 天</div>}
                 </div>
@@ -211,9 +214,9 @@ export const DeveloperSchedule: React.FC = () => {
               <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Text strong>{singleDev.name}</Text>
                 <div>{singleDev.roles.map(r => <Tag key={r} color="blue">{r}</Tag>)}</div>
-                <Text type="secondary">每日最大工时: {singleDev.max_hours_per_day}h</Text>
+                <Text type="secondary">每日最大工时: {formatHours(singleDev.max_hours_per_day, workHoursConfig)}</Text>
                 <Text type="secondary">
-                  总已分配: {singleWorkloads.reduce((sum, w) => sum + w.allocated_hours, 0).toFixed(1)}h
+                  总已分配: {formatHours(singleWorkloads.reduce((sum, w) => sum + w.allocated_hours, 0), workHoursConfig)}
                 </Text>
               </div>
             </Card>
@@ -227,7 +230,7 @@ export const DeveloperSchedule: React.FC = () => {
                   const dev = developers.find(d => d.id === devId);
                   const workloads = workloadMap[devId] || [];
                   const total = workloads.reduce((sum, w) => sum + w.allocated_hours, 0);
-                  return <Tag key={devId} color={getDevColor(devId)}>{dev?.name}: {total.toFixed(1)}h</Tag>;
+                  return <Tag key={devId} color={getDevColor(devId)}>{dev?.name}: {formatHours(total, workHoursConfig)}</Tag>;
                 })}
                 <Tag style={{ borderStyle: 'dashed', color: '#ff4d4f', borderColor: '#ff4d4f', background: 'transparent' }}>- - 最大工时线</Tag>
               </Space>
@@ -255,12 +258,12 @@ export const DeveloperSchedule: React.FC = () => {
                         title={
                           <div>
                             <div>{w.date} ({['日','一','二','三','四','五','六'][new Date(w.date).getDay()]}){isOvertimeDay ? ' 🔶加班' : ''}</div>
-                            <div>已分配: {w.allocated_hours.toFixed(1)}h</div>
-                            <div>最大工时: {w.max_hours}h</div>
-                            <div>剩余: {w.available_hours.toFixed(1)}h</div>
+                            <div>已分配: {formatHours(w.allocated_hours, workHoursConfig)}</div>
+                            <div>最大工时: {formatHours(w.max_hours, workHoursConfig)}</div>
+                            <div>剩余: {formatHours(w.available_hours, workHoursConfig)}</div>
                             {w.tasks.length > 0 && (
                               <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                                {w.tasks.map(t => <div key={t.task_id}>{t.task_name}: {t.daily_hours.toFixed(1)}h</div>)}
+                                {w.tasks.map(t => <div key={t.task_id}>{t.task_name}: {formatHours(t.daily_hours, workHoursConfig)}</div>)}
                               </div>
                             )}
                           </div>
@@ -373,11 +376,11 @@ export const DeveloperSchedule: React.FC = () => {
                           title={
                             <div>
                               <div style={{ fontWeight: 600 }}>{dev?.name} - {date}{w?.is_overtime ? ' 🔶加班' : ''}</div>
-                              <div>已分配: {hours.toFixed(1)}h</div>
-                              {w && <div>最大: {w.max_hours}h / 剩余: {w.available_hours.toFixed(1)}h</div>}
+                              <div>已分配: {formatHours(hours, workHoursConfig)}</div>
+                              {w && <div>最大: {formatHours(w.max_hours, workHoursConfig)} / 剩余: {formatHours(w.available_hours, workHoursConfig)}</div>}
                               {w && w.tasks.length > 0 && (
                                 <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                                  {w.tasks.map(t => <div key={t.task_id}>{t.task_name}: {t.daily_hours.toFixed(1)}h</div>)}
+                                  {w.tasks.map(t => <div key={t.task_id}>{t.task_name}: {formatHours(t.daily_hours, workHoursConfig)}</div>)}
                                 </div>
                               )}
                             </div>

@@ -2,8 +2,10 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Typography, Select, Tooltip, Switch } from 'antd';
 import { useTaskStore } from '../../stores/taskStore';
 import { useSprintStore } from '../../stores/sprintStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { TASK_TYPE_COLORS } from '../../lib/types';
 import type { Task } from '../../lib/types';
+import { formatHours } from '../../lib/formatHours';
 
 const { Title } = Typography;
 
@@ -25,6 +27,7 @@ function getGroupKey(task: Task): string | null {
 export const GanttView: React.FC = () => {
   const { tasks, fetchTasks } = useTaskStore();
   const { sprints, fetchSprints } = useSprintStore();
+  const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
   const [sprintId, setSprintId] = useState<number | undefined>(undefined);
   const [mergeMode, setMergeMode] = useState(true);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
@@ -161,7 +164,7 @@ export const GanttView: React.FC = () => {
         </Tooltip>
       </div>
       <div style={{ flex: 1, position: 'relative' }}>
-        <Tooltip title={`${task.name} (${task.planned_start} ~ ${task.planned_end}) ${task.planned_hours ? task.planned_hours + 'h' : ''}`}>
+        <Tooltip title={`${task.name} (${task.planned_start} ~ ${task.planned_end}) ${task.planned_hours ? formatHours(task.planned_hours, workHoursConfig) : ''}`}>
           <div style={getBarStyle(task)} />
         </Tooltip>
       </div>
@@ -187,17 +190,17 @@ export const GanttView: React.FC = () => {
           <span style={{ fontSize: 10, display: 'inline-block', transition: 'transform 0.2s', transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)' }}>
             ▶
           </span>
-          <Tooltip title={`${group.label} | ${group.mergedStart} ~ ${group.mergedEnd} | ${group.tasks.length}个任务, ${group.totalHours}h`}>
+          <Tooltip title={`${group.label} | ${group.mergedStart} ~ ${group.mergedEnd} | ${group.tasks.length}个任务, ${formatHours(group.totalHours, workHoursConfig)}`}>
             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {group.label}
             </span>
           </Tooltip>
           <span style={{ color: '#999', fontSize: 11, flexShrink: 0 }}>
-            ({group.tasks.length}个, {group.totalHours}h)
+            ({group.tasks.length}个, {formatHours(group.totalHours, workHoursConfig)})
           </span>
         </div>
         <div style={{ flex: 1, position: 'relative' }}>
-          <Tooltip title={`${group.label} ${group.mergedStart} ~ ${group.mergedEnd} (${group.tasks.length}个任务, ${group.totalHours}h)`}>
+          <Tooltip title={`${group.label} ${group.mergedStart} ~ ${group.mergedEnd} (${group.tasks.length}个任务, ${formatHours(group.totalHours, workHoursConfig)})`}>
             <div style={getGroupBarStyle(group)} />
           </Tooltip>
         </div>

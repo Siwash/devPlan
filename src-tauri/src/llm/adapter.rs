@@ -91,3 +91,46 @@ impl LlmAdapter for NoopLlmAdapter {
         Ok(Vec::new())
     }
 }
+
+// Chat types for LLM integration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatResponse {
+    pub content: String,
+    pub usage: Option<TokenUsage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub prompt_tokens: i64,
+    pub completion_tokens: i64,
+    pub total_tokens: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmChatResponse {
+    pub message: String,
+    pub actions: Vec<ChatAction>,
+    pub usage: Option<TokenUsage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatAction {
+    pub action_type: String,
+    pub description: String,
+    pub payload: serde_json::Value,
+    pub requires_confirmation: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskGroup {
+    pub group_name: String,
+    pub task_ids: Vec<i64>,
+    pub suggested_parent_id: Option<i64>,
+    pub suggested_external_prefix: Option<String>,
+}

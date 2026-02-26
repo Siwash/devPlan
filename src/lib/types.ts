@@ -253,3 +253,83 @@ export const PRIORITY_COLORS: Record<string, string> = {
   P1: '#fa8c16',
   P2: '#1890ff',
 };
+
+// Work hours config
+export interface WorkHoursConfig {
+  display_unit: 'day' | 'hour';
+  hours_per_day: number;
+}
+
+// Settings types
+export interface AppSetting {
+  key: string;
+  value: string;
+  category: string;
+  updated_at: string;
+}
+
+export interface LlmConfig {
+  api_key: string;
+  api_url: string;
+  model: string;
+  max_tokens?: number;
+}
+
+export interface ExcelTemplateConfig {
+  column_mapping: TemplateColumn[];
+  header_row?: number;
+  default_sheet_name?: string;
+}
+
+export interface TemplateColumn {
+  excel_header: string;
+  mapped_field: string;
+  column_index?: number;
+}
+
+// Batch operation types
+export interface BatchResult {
+  success_count: number;
+  fail_count: number;
+  errors: string[];
+}
+
+// LLM Chat types
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface LlmChatResponse {
+  message: string;
+  actions: ChatAction[];
+  usage?: TokenUsage;
+}
+
+export interface ChatAction {
+  action_type: string;
+  description: string;
+  payload: any;
+  requires_confirmation: boolean;
+}
+
+export interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface TaskGroup {
+  group_name: string;
+  task_ids: number[];
+  suggested_parent_id?: number;
+  suggested_external_prefix?: string;
+}
+
+export interface ScheduleSuggestion {
+  task_id: number;
+  developer_id: number;
+  planned_start: string;
+  planned_end: string;
+  reasoning: string;
+}

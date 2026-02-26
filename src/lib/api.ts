@@ -5,6 +5,8 @@ import type {
   Sprint, Project, CreateSprintDto,
   CalendarEvent, CalendarResource, DeveloperWorkload,
   ExcelFileInfo, SheetScore, ColumnMatch, ImportResult, ImportHistory,
+  LlmConfig, ExcelTemplateConfig, BatchResult,
+  ChatMessage, LlmChatResponse, ChatAction, TaskGroup, ScheduleSuggestion,
 } from './types';
 
 // Task API
@@ -67,4 +69,37 @@ export const excelApi = {
   export: (filePath: string, filter: TaskFilter = {}) =>
     invoke<string>('export_excel', { filePath, filter }),
   getHistory: () => invoke<ImportHistory[]>('get_import_history'),
+};
+
+// Settings API
+export const settingsApi = {
+  getLlmConfig: () => invoke<LlmConfig | null>('get_llm_config'),
+  saveLlmConfig: (config: LlmConfig) => invoke<void>('save_llm_config', { config }),
+  getExcelTemplateConfig: () => invoke<ExcelTemplateConfig | null>('get_excel_template_config'),
+  saveExcelTemplateConfig: (config: ExcelTemplateConfig) =>
+    invoke<void>('save_excel_template_config', { config }),
+  getSetting: (key: string) => invoke<string | null>('get_setting', { key }),
+  saveSetting: (key: string, value: string, category: string) =>
+    invoke<void>('save_setting', { key, value, category }),
+};
+
+// Batch API
+export const batchApi = {
+  updateTasks: (updates: UpdateTaskDto[]) => invoke<BatchResult>('batch_update_tasks', { updates }),
+  deleteTasks: (ids: number[]) => invoke<number>('batch_delete_tasks', { ids }),
+  createTasks: (tasks: CreateTaskDto[]) => invoke<number[]>('batch_create_tasks', { tasks }),
+};
+
+// LLM API
+export const llmApi = {
+  chat: (userMessage: string, history: ChatMessage[]) =>
+    invoke<LlmChatResponse>('llm_chat', { userMessage, history }),
+  executeAction: (action: ChatAction) => invoke<string>('llm_execute_action', { action }),
+  smartSchedule: (taskIds: number[], sprintId?: number) =>
+    invoke<ScheduleSuggestion[]>('llm_smart_schedule', { taskIds, sprintId: sprintId ?? null }),
+  identifySimilarTasks: (taskIds: number[]) =>
+    invoke<TaskGroup[]>('llm_identify_similar_tasks', { taskIds }),
+  autoFillTasks: (taskIds: number[]) =>
+    invoke<UpdateTaskDto[]>('llm_auto_fill_tasks', { taskIds }),
+  testConnection: () => invoke<string>('llm_test_connection'),
 };

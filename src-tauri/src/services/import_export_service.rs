@@ -1,6 +1,7 @@
 use rusqlite::Connection;
 use crate::db::{task_repo, developer_repo, sprint_repo};
 use crate::models::task::CreateTaskDto;
+use crate::services::settings_service;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ImportResult {
@@ -23,6 +24,13 @@ pub fn import_tasks_from_rows(
     };
 
     let mut dev_color_index = 0usize;
+
+    // Read hours_per_day from settings (default 8)
+    let hours_per_day = settings_service::get_setting(conn, "work_hours.hours_per_day")
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(8.0);
 
     for (idx, row) in rows.iter().enumerate() {
         let get_mapped = |field: &str| -> Option<String> {
@@ -91,7 +99,7 @@ pub fn import_tasks_from_rows(
             priority: get_mapped("priority"),
             planned_start: get_mapped("planned_start"),
             planned_end: get_mapped("planned_end"),
-            planned_hours: get_mapped("planned_hours").and_then(|h| parse_days_to_hours(&h)),
+            planned_hours: get_mapped("planned_hours").and_then(|h| parse_days_to_hours(&h, hours_per_day)),
             parent_task_id: None,
             status: get_mapped("status"),
             co_owner_ids: None,
@@ -121,7 +129,7 @@ pub fn import_tasks_from_rows(
 
 /// Parse a days value from Excel to hours (1 day = 8 hours).
 /// Handles formats: "1", "0.5", "2天", "1.5 天", "1day", "0.5 days", etc.
-fn parse_days_to_hours(raw: &str) -> Option<f64> {
+fn parse_days_to_hours(raw: &str, hours_per_day: f64) -> Option<f64> {
     let cleaned = raw
         .replace("天", "")
         .replace("day", "")
@@ -134,5 +142,5 @@ fn parse_days_to_hours(raw: &str) -> Option<f64> {
     if days < 0.0 {
         return None;
     }
-    Some(days * 8.0)
+    Some(days * hours_per_day)
 }

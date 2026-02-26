@@ -3,8 +3,10 @@ import { Typography, Select, DatePicker, Segmented, Card, Tag, Space, Empty, Spi
 import { ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { useTaskStore } from '../../stores/taskStore';
 import { useDeveloperStore } from '../../stores/developerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { STATUS_COLORS, TASK_TYPE_COLORS, PRIORITY_COLORS } from '../../lib/types';
 import type { Task } from '../../lib/types';
+import { formatHours } from '../../lib/formatHours';
 import dayjs, { Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -14,6 +16,7 @@ type ViewMode = 'day' | 'week';
 export const TodoBoard: React.FC = () => {
   const { tasks, loading, fetchTasks } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
+  const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [selectedDevIds, setSelectedDevIds] = useState<number[]>([]);
@@ -186,7 +189,7 @@ export const TodoBoard: React.FC = () => {
                       task.planned_hours ? (
                         <Tooltip title="计划工时">
                           <Text type="secondary" style={{ fontSize: 12 }}>
-                            <ClockCircleOutlined /> {task.planned_hours}h
+                            <ClockCircleOutlined /> {formatHours(task.planned_hours, workHoursConfig)}
                           </Text>
                         </Tooltip>
                       ) : null,
@@ -266,7 +269,7 @@ export const TodoBoard: React.FC = () => {
                             <div>负责人: {task.owner_name || '未分配'}</div>
                             <div>状态: {task.status}</div>
                             <div>{task.planned_start} ~ {task.planned_end}</div>
-                            {task.planned_hours && <div>工时: {task.planned_hours}h</div>}
+                            {task.planned_hours && <div>工时: {formatHours(task.planned_hours, workHoursConfig)}</div>}
                           </div>
                         }
                       >

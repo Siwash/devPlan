@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Card, List, Avatar, Tag, Button, Modal, Form, Input, InputNumber, Select, Space, message, Typography, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from '@ant-design/icons';
 import { useDeveloperStore } from '../../stores/developerStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import type { Developer } from '../../lib/types';
+import { formatHours } from '../../lib/formatHours';
 
 const { Title } = Typography;
 
@@ -10,6 +12,7 @@ const ROLES = ['前端', '后端', '测试', '设计', '产品', '架构', '运�
 
 export const DeveloperList: React.FC = () => {
   const { developers, loading, fetchDevelopers, createDeveloper, updateDeveloper, deleteDeveloper } = useDeveloperStore();
+  const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
   const [formVisible, setFormVisible] = useState(false);
   const [editingDev, setEditingDev] = useState<Developer | null>(null);
   const [form] = Form.useForm();
@@ -105,7 +108,7 @@ export const DeveloperList: React.FC = () => {
                       {dev.skills.map(s => <Tag key={s}>{s}</Tag>)}
                     </div>
                     <div style={{ color: '#999', fontSize: 12 }}>
-                      每日最大工时: {dev.max_hours_per_day}h
+                      每日最大工时: {formatHours(dev.max_hours_per_day, workHoursConfig)}
                     </div>
                   </div>
                 }

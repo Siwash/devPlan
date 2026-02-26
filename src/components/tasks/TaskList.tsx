@@ -1,29 +1,33 @@
-import React, { useEffect, useState } from 'react';
-import { Table, Button, Space, Input, Select, message, Popconfirm, Typography } from 'antd';
-import { PlusOutlined, SearchOutlined, DeleteOutlined, EditOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Button, Space, Input, Select, message, Popconfirm, Typography, Modal } from 'antd';
+import { PlusOutlined, SearchOutlined, DeleteOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useTaskStore } from '../../stores/taskStore';
 import { useDeveloperStore } from '../../stores/developerStore';
 import { useSprintStore } from '../../stores/sprintStore';
-import { StatusBadge, PriorityBadge, TaskTypeBadge } from '../common/StatusBadge';
-import { TaskForm } from './TaskForm';
+import { EditableTaskTable } from './EditableTaskTable';
+import { AiTaskToolbar } from './AiTaskToolbar';
 import { ExportDialog } from '../excel/ExportDialog';
+import { useClipboardPaste } from './useClipboardPaste';
+import { batchApi, taskApi } from '../../lib/api';
 import { TASK_TYPES, PRIORITIES, TASK_STATUSES } from '../../lib/types';
-import type { Task, TaskFilter } from '../../lib/types';
+import type { Task, TaskFilter, CreateTaskDto, UpdateTaskDto } from '../../lib/types';
 
 const { Title } = Typography;
 
+const PASTE_FIELDS = [
+  'task_type', 'external_id', 'name', 'owner_name', 'sprint_name',
+  'priority', 'planned_start', 'planned_end', 'planned_hours', 'status',
+];
+
 export const TaskList: React.FC = () => {
-  const { tasks, loading, fetchTasks, deleteTask, taskCount, fetchTaskCount } = useTaskStore();
+  const { tasks, loading, fetchTasks, createTask, updateTask, deleteTask, taskCount, fetchTaskCount } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
   const { sprints, fetchSprints } = useSprintStore();
-  const [formVisible, setFormVisible] = useState(false);
   const [exportVisible, setExportVisible] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchDeleting, setBatchDeleting] = useState(false);
-
-  // Local filter state - only applied on search click
   const [localFilter, setLocalFilter] = useState<TaskFilter>({});
+  const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
 
   useEffect(() => {
     fetchTasks();
@@ -45,17 +49,24 @@ export const TaskList: React.FC = () => {
     fetchTaskCount();
   };
 
-  const handleEdit = (task: Task) => {
-    setEditingTask(task);
-    setFormVisible(true);
+  const handleUpdateTask = async (dto: UpdateTaskDto) => {
+    try {
+      await updateTask(dto);
+    } catch (e) {
+      message.error('更新失败: ' + String(e));
+    }
   };
 
-  const handleCreate = () => {
-    setEditingTask(null);
-    setFormVisible(true);
+  const handleCreateTask = async () => {
+    try {
+      await createTask({ name: '新任务', status: '待开始' });
+      message.success('已创建新任务');
+    } catch (e) {
+      message.error('创建失败: ' + String(e));
+    }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteTask = async (id: number) => {
     try {
       await deleteTask(id);
       message.success('任务已删除');
@@ -66,96 +77,72 @@ export const TaskList: React.FC = () => {
 
   const handleBatchDelete = async () => {
     setBatchDeleting(true);
-    let success = 0;
-    let fail = 0;
-    for (const key of selectedRowKeys) {
-      try {
-        await deleteTask(key as number);
-        success++;
-      } catch {
-        fail++;
-      }
+    try {
+      await batchApi.deleteTasks(selectedRowKeys as number[]);
+      setSelectedRowKeys([]);
+      fetchTasks();
+      fetchTaskCount();
+      message.success(`已删除 ${selectedRowKeys.length} 条任务`);
+    } catch (e: any) {
+      message.error(`批量删除失败: ${e}`);
+    } finally {
+      setBatchDeleting(false);
     }
-    setBatchDeleting(false);
-    setSelectedRowKeys([]);
-    fetchTaskCount();
-    message.success(`已删除 ${success} 条任务${fail > 0 ? `，${fail} 条失败` : ''}`);
   };
 
-  const columns = [
-    {
-      title: '类型',
-      dataIndex: 'task_type',
-      width: 100,
-      render: (v: string) => <TaskTypeBadge taskType={v} />,
-    },
-    {
-      title: '编号',
-      dataIndex: 'external_id',
-      width: 120,
-    },
-    {
-      title: '名称',
-      dataIndex: 'name',
-      ellipsis: true,
-    },
-    {
-      title: '负责人',
-      dataIndex: 'owner_name',
-      width: 100,
-    },
-    {
-      title: '迭代',
-      dataIndex: 'sprint_name',
-      width: 100,
-    },
-    {
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 80,
-      render: (v: string) => <PriorityBadge priority={v} />,
-    },
-    {
-      title: '计划开始',
-      dataIndex: 'planned_start',
-      width: 110,
-    },
-    {
-      title: '计划结束',
-      dataIndex: 'planned_end',
-      width: 110,
-    },
-    {
-      title: '工时',
-      dataIndex: 'planned_hours',
-      width: 90,
-      render: (v: number) => v ? `${v}h (${(v / 8).toFixed(1)}d)` : '-',
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 90,
-      render: (v: string) => <StatusBadge status={v} />,
-    },
-    {
-      title: '操作',
-      width: 120,
-      render: (_: unknown, record: Task) => (
-        <Space size="small">
-          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Popconfirm title="确定删除此任务？" onConfirm={() => handleDelete(record.id)}>
-            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const handlePaste = useCallback(async (rows: Record<string, string>[]) => {
+    if (rows.length === 0) return;
+
+    Modal.confirm({
+      title: `粘贴确认`,
+      content: `检测到 ${rows.length} 行数据，是否创建为新任务？`,
+      onOk: async () => {
+        try {
+          const dtos: CreateTaskDto[] = rows.map(row => ({
+            name: row.name || '未命名任务',
+            task_type: row.task_type,
+            external_id: row.external_id,
+            priority: row.priority,
+            status: row.status || '待开始',
+            planned_start: row.planned_start,
+            planned_end: row.planned_end,
+            planned_hours: row.planned_hours ? parseFloat(row.planned_hours) : undefined,
+          }));
+          const ids = await batchApi.createTasks(dtos);
+          message.success(`成功创建 ${ids.length} 条任务`);
+          fetchTasks();
+          fetchTaskCount();
+        } catch (e: any) {
+          message.error(`粘贴创建失败: ${e}`);
+        }
+      },
+    });
+  }, []);
+
+  const { containerRef } = useClipboardPaste({
+    columnFields: PASTE_FIELDS,
+    onPaste: handlePaste,
+  });
+
+  const handleRefresh = () => {
+    fetchTasks();
+    fetchTaskCount();
+  };
+
+  const handleHighlight = (ids: number[]) => {
+    setHighlightedIds(ids);
+    // Auto-clear after 7 seconds
+    setTimeout(() => setHighlightedIds([]), 7000);
+  };
 
   return (
-    <div>
+    <div ref={containerRef as React.RefObject<HTMLDivElement>}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>任务列表 ({taskCount})</Title>
         <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateTask}>
+            新增任务
+          </Button>
           {selectedRowKeys.length > 0 && (
             <Popconfirm
               title={`确定删除选中的 ${selectedRowKeys.length} 条任务？`}
@@ -170,13 +157,10 @@ export const TaskList: React.FC = () => {
           <Button icon={<ExportOutlined />} onClick={() => setExportVisible(true)}>
             导出 Excel
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            新建任务
-          </Button>
         </Space>
       </div>
 
-      <Space wrap style={{ marginBottom: 16 }}>
+      <Space wrap style={{ marginBottom: 12 }}>
         <Input
           placeholder="搜索任务..."
           allowClear
@@ -233,24 +217,28 @@ export const TaskList: React.FC = () => {
         </Button>
       </Space>
 
-      <Table
-        columns={columns}
-        dataSource={tasks}
-        rowKey="id"
-        loading={loading}
-        size="small"
-        rowSelection={{
-          selectedRowKeys,
-          onChange: setSelectedRowKeys,
-        }}
-        pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: [20, 50, 100, 200], showTotal: (total) => `共 ${total} 条` }}
-        scroll={{ x: 1200 }}
-      />
+      <div style={{ marginBottom: 12 }}>
+        <AiTaskToolbar
+          selectedTaskIds={selectedRowKeys as number[]}
+          allTaskIds={tasks.map(t => t.id)}
+          tasks={tasks}
+          developers={developers}
+          onRefresh={handleRefresh}
+          onHighlight={handleHighlight}
+        />
+      </div>
 
-      <TaskForm
-        visible={formVisible}
-        task={editingTask}
-        onClose={() => { setFormVisible(false); setEditingTask(null); }}
+      <EditableTaskTable
+        tasks={tasks}
+        developers={developers}
+        sprints={sprints}
+        loading={loading}
+        onUpdateTask={handleUpdateTask}
+        onCreateTask={handleCreateTask}
+        onDeleteTask={handleDeleteTask}
+        selectedRowKeys={selectedRowKeys}
+        onSelectedRowKeysChange={setSelectedRowKeys}
+        highlightedRowIds={highlightedIds}
       />
 
       <ExportDialog

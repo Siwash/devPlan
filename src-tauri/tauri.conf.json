@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DevPlan",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.devplan.app",
   "build": {
     "frontendDist": "../dist",
@@ -33,7 +33,10 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
   },
   "plugins": {}
 

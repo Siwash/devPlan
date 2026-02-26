@@ -81,6 +81,13 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
         CREATE INDEX IF NOT EXISTS idx_tasks_sprint ON tasks(sprint_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         CREATE INDEX IF NOT EXISTS idx_tasks_dates ON tasks(planned_start, planned_end);
+
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            category TEXT NOT NULL DEFAULT 'general',
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
         "
     )?;
     Ok(())

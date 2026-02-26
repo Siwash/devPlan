@@ -9,8 +9,11 @@ import {
   ScheduleOutlined,
   SettingOutlined,
   CheckSquareOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { TabBar } from './TabBar';
+import { useTabStore } from '../../stores/tabStore';
 
 const { Header, Sider, Content } = Layout;
 
@@ -24,11 +27,38 @@ const menuItems = [
   { key: '/import', icon: <ImportOutlined />, label: 'Excel 导入' },
 ];
 
+const MENU_LABEL_MAP: Record<string, string> = {
+  '/todo': '待办任务',
+  '/tasks': '任务列表',
+  '/calendar': '日历视图',
+  '/developers': '开发成员',
+  '/schedule': '个人日程',
+  '/gantt': '甘特图',
+  '/import': 'Excel 导入',
+};
+
 export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = theme.useToken();
+  const { openTab } = useTabStore();
+
+  const handleMenuClick = (key: string) => {
+    const label = MENU_LABEL_MAP[key] || key;
+    openTab(key, label, key !== '/todo');
+    navigate(key);
+  };
+
+  const handleSettingsClick = () => {
+    openTab('/settings', '设置', true);
+    navigate('/settings');
+  };
+
+  const handleChatClick = () => {
+    openTab('/chat', 'AI 对话', true);
+    navigate('/chat');
+  };
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -54,7 +84,7 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           mode="inline"
           selectedKeys={[location.pathname]}
           items={menuItems}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }) => handleMenuClick(key)}
         />
       </Sider>
       <Layout>
@@ -65,19 +95,32 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
           alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          height: 48,
+          lineHeight: '48px',
         }}>
           <span style={{ fontSize: 16, fontWeight: 500 }}>
             开发项目管理
           </span>
-          <SettingOutlined style={{ fontSize: 18, cursor: 'pointer' }} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <RobotOutlined
+              style={{ fontSize: 18, cursor: 'pointer' }}
+              onClick={handleChatClick}
+              title="AI 对话"
+            />
+            <SettingOutlined
+              style={{ fontSize: 18, cursor: 'pointer' }}
+              onClick={handleSettingsClick}
+            />
+          </span>
         </Header>
+        <TabBar />
         <Content style={{
           margin: 16,
           padding: 24,
           background: token.colorBgContainer,
           borderRadius: token.borderRadiusLG,
           overflow: 'auto',
-          height: 'calc(100vh - 64px - 32px)',
+          height: 'calc(100vh - 48px - 40px - 32px)',
         }}>
           {children}
         </Content>

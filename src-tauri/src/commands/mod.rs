@@ -3,3 +3,6 @@ pub mod developer_commands;
 pub mod sprint_commands;
 pub mod calendar_commands;
 pub mod excel_commands;
+pub mod settings_commands;
+pub mod batch_commands;
+pub mod llm_commands;

@@ -2,6 +2,7 @@ pub mod init;
 pub mod task_repo;
 pub mod developer_repo;
 pub mod sprint_repo;
+pub mod settings_repo;
 
 use rusqlite::Connection;
 use std::sync::Mutex;

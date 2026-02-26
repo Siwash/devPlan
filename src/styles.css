@@ -67,3 +67,144 @@ body {
 .ant-layout-sider {
   border-right: 1px solid #f0f0f0;
 }
+
+/* ---- Chat Markdown Styles ---- */
+.chat-markdown p {
+  margin-bottom: 8px;
+}
+
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown h1, .chat-markdown h2, .chat-markdown h3,
+.chat-markdown h4, .chat-markdown h5, .chat-markdown h6 {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.chat-markdown h1 { font-size: 1.3em; }
+.chat-markdown h2 { font-size: 1.2em; }
+.chat-markdown h3 { font-size: 1.1em; }
+
+.chat-markdown code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.chat-markdown pre {
+  background: #282c34;
+  color: #abb2bf;
+  padding: 12px 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.chat-markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 13px;
+}
+
+.chat-markdown ul, .chat-markdown ol {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+
+.chat-markdown li {
+  margin-bottom: 4px;
+}
+
+.chat-markdown blockquote {
+  border-left: 3px solid #d9d9d9;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.chat-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.chat-markdown th, .chat-markdown td {
+  border: 1px solid #e8e8e8;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.chat-markdown th {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
+
+.chat-markdown a {
+  color: #1677ff;
+  text-decoration: none;
+}
+
+.chat-markdown hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 12px 0;
+}
+
+/* Streaming cursor animation */
+.streaming-cursor {
+  display: inline-block;
+  animation: blink 0.8s step-end infinite;
+  color: #1677ff;
+  font-weight: 300;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* AI highlighted row */
+.ai-highlighted-row td {
+  background-color: #e6f4ff !important;
+  border-left: 3px solid #1677ff;
+}
+
+@keyframes ai-highlight-fade {
+  0% { background-color: #bae0ff; }
+  100% { background-color: transparent; }
+}
+
+.ai-highlighted-row td {
+  animation: ai-highlight-fade 5s ease-out forwards;
+  animation-delay: 2s;
+}
+
+/* Fill handle for Excel-like drag fill */
+.fill-handle {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 7px;
+  height: 7px;
+  background: #1677ff;
+  cursor: crosshair;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.editable-cell-wrapper:hover .fill-handle {
+  opacity: 1;
+}
+
+/* Fill drag target highlight */
+.fill-drag-target > td {
+  background-color: #e6f7ff !important;
+}
