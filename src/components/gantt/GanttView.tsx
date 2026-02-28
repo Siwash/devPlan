@@ -3,6 +3,7 @@ import { Typography, Select, Tooltip, Switch } from 'antd';
 import { useTaskStore } from '../../stores/taskStore';
 import { useSprintStore } from '../../stores/sprintStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useTaskDetailStore } from '../../stores/taskDetailStore';
 import { TASK_TYPE_COLORS } from '../../lib/types';
 import type { Task } from '../../lib/types';
 import { formatHours } from '../../lib/formatHours';
@@ -28,6 +29,7 @@ export const GanttView: React.FC = () => {
   const { tasks, fetchTasks } = useTaskStore();
   const { sprints, fetchSprints } = useSprintStore();
   const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
+  const { openTaskDetail } = useTaskDetailStore();
   const [sprintId, setSprintId] = useState<number | undefined>(undefined);
   const [mergeMode, setMergeMode] = useState(true);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
@@ -160,7 +162,7 @@ export const GanttView: React.FC = () => {
         borderRight: '1px solid #f0f0f0',
       }}>
         <Tooltip title={`${task.name} | ${task.owner_name || ''} | ${task.planned_start} ~ ${task.planned_end}`}>
-          {task.name}
+          <span style={{ cursor: 'pointer' }} className="task-name-link" onClick={(e) => { e.stopPropagation(); openTaskDetail(task.id); }}>{task.name}</span>
         </Tooltip>
       </div>
       <div style={{ flex: 1, position: 'relative' }}>

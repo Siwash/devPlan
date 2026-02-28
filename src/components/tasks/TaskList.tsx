@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Button, Space, Input, Select, message, Popconfirm, Typography, Modal } from 'antd';
-import { PlusOutlined, SearchOutlined, DeleteOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, DeleteOutlined, ExportOutlined, ReloadOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
 import { useTaskStore } from '../../stores/taskStore';
 import { useDeveloperStore } from '../../stores/developerStore';
 import { useSprintStore } from '../../stores/sprintStore';
+import { useTabStore } from '../../stores/tabStore';
 import { EditableTaskTable } from './EditableTaskTable';
 import { AiTaskToolbar } from './AiTaskToolbar';
 import { ExportDialog } from '../excel/ExportDialog';
@@ -15,7 +16,7 @@ import type { Task, TaskFilter, CreateTaskDto, UpdateTaskDto } from '../../lib/t
 const { Title } = Typography;
 
 const PASTE_FIELDS = [
-  'task_type', 'external_id', 'name', 'owner_name', 'sprint_name',
+  'task_type', 'external_id', 'parent_number', 'parent_name', 'name', 'owner_name', 'sprint_name',
   'priority', 'planned_start', 'planned_end', 'planned_hours', 'status',
 ];
 
@@ -23,6 +24,8 @@ export const TaskList: React.FC = () => {
   const { tasks, loading, fetchTasks, createTask, updateTask, deleteTask, taskCount, fetchTaskCount } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
   const { sprints, fetchSprints } = useSprintStore();
+  const isFullscreen = useTabStore((s) => s.isFullscreen);
+  const toggleFullscreen = useTabStore((s) => s.toggleFullscreen);
   const [exportVisible, setExportVisible] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchDeleting, setBatchDeleting] = useState(false);
@@ -35,6 +38,15 @@ export const TaskList: React.FC = () => {
     fetchDevelopers();
     fetchSprints();
   }, []);
+
+  // ESC to exit fullscreen
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [isFullscreen, toggleFullscreen]);
 
   const handleSearch = () => {
     useTaskStore.getState().setFilter(localFilter);
@@ -140,6 +152,11 @@ export const TaskList: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>任务列表 ({taskCount})</Title>
         <Space>
+          <Button
+            icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+            onClick={toggleFullscreen}
+            title={isFullscreen ? '退出全屏' : '全屏显示'}
+          />
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateTask}>
             新增任务
           </Button>

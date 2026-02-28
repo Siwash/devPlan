@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { settingsApi } from '../lib/api';
-import type { LlmConfig, ExcelTemplateConfig, WorkHoursConfig } from '../lib/types';
+import type { LlmConfig, ExcelTemplateConfig, WorkHoursConfig, OvertimeConfig } from '../lib/types';
 
 interface SettingsState {
   llmConfig: LlmConfig | null;
   excelTemplateConfig: ExcelTemplateConfig | null;
   workHoursConfig: WorkHoursConfig;
+  overtimeConfig: OvertimeConfig;
   loading: boolean;
   error: string | null;
   fetchLlmConfig: () => Promise<void>;
@@ -14,6 +15,8 @@ interface SettingsState {
   saveExcelTemplateConfig: (config: ExcelTemplateConfig) => Promise<void>;
   fetchWorkHoursConfig: () => Promise<void>;
   saveWorkHoursConfig: (config: WorkHoursConfig) => Promise<void>;
+  fetchOvertimeConfig: () => Promise<void>;
+  saveOvertimeConfig: (config: OvertimeConfig) => Promise<void>;
 }
 
 const DEFAULT_WORK_HOURS: WorkHoursConfig = {
@@ -21,10 +24,16 @@ const DEFAULT_WORK_HOURS: WorkHoursConfig = {
   hours_per_day: 8,
 };
 
+const DEFAULT_OVERTIME: OvertimeConfig = {
+  weekend: 'none',
+  custom_dates: [],
+};
+
 export const useSettingsStore = create<SettingsState>((set) => ({
   llmConfig: null,
   excelTemplateConfig: null,
   workHoursConfig: DEFAULT_WORK_HOURS,
+  overtimeConfig: DEFAULT_OVERTIME,
   loading: false,
   error: null,
 
@@ -88,6 +97,38 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       await settingsApi.saveSetting('work_hours.display_unit', config.display_unit, 'work_hours');
       await settingsApi.saveSetting('work_hours.hours_per_day', String(config.hours_per_day), 'work_hours');
       set({ workHoursConfig: config });
+    } catch (e: any) {
+      set({ error: e.toString() });
+    }
+  },
+
+  fetchOvertimeConfig: async () => {
+    try {
+      const json = await settingsApi.getSetting('schedule.overtime_days');
+      if (json) {
+        const parsed = JSON.parse(json);
+        set({
+          overtimeConfig: {
+            weekend: parsed.weekend || 'none',
+            custom_dates: parsed.custom_dates || [],
+          },
+        });
+      } else {
+        set({ overtimeConfig: DEFAULT_OVERTIME });
+      }
+    } catch {
+      set({ overtimeConfig: DEFAULT_OVERTIME });
+    }
+  },
+
+  saveOvertimeConfig: async (config: OvertimeConfig) => {
+    try {
+      await settingsApi.saveSetting(
+        'schedule.overtime_days',
+        JSON.stringify(config),
+        'schedule',
+      );
+      set({ overtimeConfig: config });
     } catch (e: any) {
       set({ error: e.toString() });
     }

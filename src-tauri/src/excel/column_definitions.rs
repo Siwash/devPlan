@@ -41,6 +41,22 @@ pub fn get_task_column_definitions() -> Vec<ColumnDefinition> {
             required: false,
         },
         ColumnDefinition {
+            field: "parent_number".into(),
+            label: "父级编号".into(),
+            keywords_cn: vec!["父级编号".into(), "父编号".into(), "上级编号".into()],
+            keywords_en: vec!["parent_number".into(), "parent_id".into(), "parent_no".into()],
+            data_type: ColumnDataType::Text,
+            required: false,
+        },
+        ColumnDefinition {
+            field: "parent_name".into(),
+            label: "父级项名称".into(),
+            keywords_cn: vec!["父级名称".into(), "父级项名称".into(), "上级名称".into(), "所属模块".into()],
+            keywords_en: vec!["parent_name".into(), "parent_title".into(), "module".into()],
+            data_type: ColumnDataType::Text,
+            required: false,
+        },
+        ColumnDefinition {
             field: "name".into(),
             label: "名称".into(),
             keywords_cn: vec!["名称".into(), "任务名称".into(), "标题".into(), "任务名".into(), "工作项名称".into()],

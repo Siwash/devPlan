@@ -14,6 +14,8 @@ export interface Task {
   planned_end?: string;
   planned_hours?: number;
   parent_task_id?: number;
+  parent_number?: string;
+  parent_name?: string;
   status?: string;
   co_owners?: CoOwner[];
 }
@@ -35,6 +37,8 @@ export interface CreateTaskDto {
   planned_end?: string;
   planned_hours?: number;
   parent_task_id?: number;
+  parent_number?: string;
+  parent_name?: string;
   status?: string;
   co_owner_ids?: number[];
 }
@@ -52,6 +56,8 @@ export interface UpdateTaskDto {
   planned_end?: string;
   planned_hours?: number;
   parent_task_id?: number;
+  parent_number?: string;
+  parent_name?: string;
   status?: string;
   co_owner_ids?: number[];
 }
@@ -137,6 +143,7 @@ export interface CalendarEventExtProps {
   task_type?: string;
   priority?: string;
   status?: string;
+  owner_id?: number;
   owner_name?: string;
   planned_hours?: number;
   sprint_id?: number;
@@ -198,9 +205,21 @@ export interface ColumnMatch {
 
 export interface ImportResult {
   rows_imported: number;
+  rows_updated: number;
+  rows_skipped: number;
   developers_created: string[];
   sprints_created: string[];
   errors: string[];
+}
+
+export interface ImportConflict {
+  row_index: number;
+  import_name: string;
+  import_external_id: string;
+  existing_task_id: number;
+  existing_name: string;
+  existing_external_id: string;
+  match_type: string;
 }
 
 export interface ImportHistory {
@@ -258,6 +277,12 @@ export const PRIORITY_COLORS: Record<string, string> = {
 export interface WorkHoursConfig {
   display_unit: 'day' | 'hour';
   hours_per_day: number;
+}
+
+// Overtime config
+export interface OvertimeConfig {
+  weekend: 'none' | 'saturday' | 'sunday' | 'both';
+  custom_dates: string[];
 }
 
 // Settings types
@@ -332,4 +357,41 @@ export interface ScheduleSuggestion {
   planned_start: string;
   planned_end: string;
   reasoning: string;
+}
+
+// Standup types
+export interface StandupMeeting {
+  id: number;
+  meeting_date: string;
+  notes?: string;
+  created_at: string;
+  entries: StandupEntry[];
+}
+
+export interface StandupEntry {
+  id: number;
+  meeting_id: number;
+  developer_id: number;
+  developer_name: string;
+  done_items: StandupItem[];
+  plan_items: StandupItem[];
+  blockers: StandupItem[];
+}
+
+export interface StandupItem {
+  text: string;
+  task_id?: number;
+}
+
+export interface SaveStandupRequest {
+  meeting_date: string;
+  notes?: string;
+  entries: SaveEntryRequest[];
+}
+
+export interface SaveEntryRequest {
+  developer_id: number;
+  done_items: StandupItem[];
+  plan_items: StandupItem[];
+  blockers: StandupItem[];
 }

@@ -88,7 +88,52 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             category TEXT NOT NULL DEFAULT 'general',
             updated_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS standup_meetings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_date TEXT NOT NULL UNIQUE,
+            notes TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS standup_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            meeting_id INTEGER NOT NULL,
+            developer_id INTEGER NOT NULL,
+            done_items TEXT NOT NULL DEFAULT '[]',
+            plan_items TEXT NOT NULL DEFAULT '[]',
+            blockers TEXT NOT NULL DEFAULT '[]',
+            FOREIGN KEY (meeting_id) REFERENCES standup_meetings(id) ON DELETE CASCADE,
+            FOREIGN KEY (developer_id) REFERENCES developers(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS standup_task_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry_id INTEGER NOT NULL,
+            task_id INTEGER NOT NULL,
+            link_type TEXT NOT NULL,
+            FOREIGN KEY (entry_id) REFERENCES standup_entries(id) ON DELETE CASCADE,
+            FOREIGN KEY (task_id) REFERENCES tasks(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_standup_date ON standup_meetings(meeting_date);
+        CREATE INDEX IF NOT EXISTS idx_standup_entry_meeting ON standup_entries(meeting_id);
         "
     )?;
+    Ok(())
+}
+
+pub fn run_migrations(conn: &Connection) -> Result<()> {
+    let has_col: bool = conn
+        .prepare("SELECT COUNT(*) FROM pragma_table_info('tasks') WHERE name='parent_number'")
+        .and_then(|mut s| s.query_row([], |r| r.get::<_, i64>(0)))
+        .map(|c| c > 0)
+        .unwrap_or(false);
+    if !has_col {
+        conn.execute_batch(
+            "ALTER TABLE tasks ADD COLUMN parent_number TEXT;
+             ALTER TABLE tasks ADD COLUMN parent_name TEXT;"
+        )?;
+    }
     Ok(())
 }

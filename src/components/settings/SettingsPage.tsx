@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Tabs, Form, Input, InputNumber, Select, Button, Table, Space, message, Popconfirm, Segmented } from 'antd';
+import { Tabs, Form, Input, InputNumber, Select, Button, Table, Space, message, Popconfirm, Segmented, DatePicker, Tag } from 'antd';
 import { PlusOutlined, DeleteOutlined, ApiOutlined } from '@ant-design/icons';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { llmApi } from '../../lib/api';
-import type { LlmConfig, ExcelTemplateConfig, TemplateColumn, WorkHoursConfig } from '../../lib/types';
+import type { LlmConfig, ExcelTemplateConfig, TemplateColumn, WorkHoursConfig, OvertimeConfig } from '../../lib/types';
+import dayjs from 'dayjs';
 
 const TASK_FIELDS = [
   { value: 'external_id', label: '编号' },
@@ -272,20 +273,47 @@ export const SettingsPage: React.FC = () => {
 };
 
 const GeneralSettingsTab: React.FC = () => {
-  const { workHoursConfig, fetchWorkHoursConfig, saveWorkHoursConfig } = useSettingsStore();
+  const { workHoursConfig, fetchWorkHoursConfig, saveWorkHoursConfig, overtimeConfig, fetchOvertimeConfig, saveOvertimeConfig } = useSettingsStore();
   const [localConfig, setLocalConfig] = useState<WorkHoursConfig>(workHoursConfig);
+  const [localOvertime, setLocalOvertime] = useState<OvertimeConfig>(overtimeConfig);
 
   useEffect(() => {
     fetchWorkHoursConfig();
+    fetchOvertimeConfig();
   }, []);
 
   useEffect(() => {
     setLocalConfig(workHoursConfig);
   }, [workHoursConfig]);
 
+  useEffect(() => {
+    setLocalOvertime(overtimeConfig);
+  }, [overtimeConfig]);
+
   const handleSave = async () => {
     await saveWorkHoursConfig(localConfig);
+    await saveOvertimeConfig(localOvertime);
     message.success('通用设置已保存');
+  };
+
+  const handleAddDate = (date: dayjs.Dayjs | null) => {
+    if (!date) return;
+    const dateStr = date.format('YYYY-MM-DD');
+    if (localOvertime.custom_dates.includes(dateStr)) {
+      message.warning('该日期已添加');
+      return;
+    }
+    setLocalOvertime({
+      ...localOvertime,
+      custom_dates: [...localOvertime.custom_dates, dateStr].sort(),
+    });
+  };
+
+  const handleRemoveDate = (dateStr: string) => {
+    setLocalOvertime({
+      ...localOvertime,
+      custom_dates: localOvertime.custom_dates.filter(d => d !== dateStr),
+    });
   };
 
   return (
@@ -317,6 +345,39 @@ const GeneralSettingsTab: React.FC = () => {
         />
         <div style={{ marginTop: 4, fontSize: 12, color: '#999' }}>
           用于"天"与"小时"之间的换算 (默认 8 小时 = 1 天)
+        </div>
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 8, fontWeight: 500 }}>固定加班日</div>
+        <Segmented
+          value={localOvertime.weekend}
+          onChange={(v) => setLocalOvertime({ ...localOvertime, weekend: v as OvertimeConfig['weekend'] })}
+          options={[
+            { label: '无', value: 'none' },
+            { label: '周六', value: 'saturday' },
+            { label: '周日', value: 'sunday' },
+            { label: '周六和周日', value: 'both' },
+          ]}
+        />
+        <div style={{ marginTop: 4, fontSize: 12, color: '#999' }}>
+          设置每周固定加班的周末日，法定节假日优先级更高
+        </div>
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 8, fontWeight: 500 }}>额外加班日</div>
+        <DatePicker
+          onChange={handleAddDate}
+          value={null}
+          placeholder="选择日期添加"
+          style={{ width: 200 }}
+        />
+        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {localOvertime.custom_dates.map(d => (
+            <Tag key={d} closable onClose={() => handleRemoveDate(d)}>{d}</Tag>
+          ))}
+        </div>
+        <div style={{ marginTop: 4, fontSize: 12, color: '#999' }}>
+          手动指定额外的加班日期，这些日期将被视为工作日
         </div>
       </div>
       <Button type="primary" onClick={handleSave}>保存</Button>

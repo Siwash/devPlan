@@ -228,6 +228,8 @@ pub fn execute_chat_action(
                     planned_end: ai_task.get("planned_end").and_then(|v| v.as_str()).map(|s| s.to_string()),
                     planned_hours: ai_task.get("planned_hours").and_then(|v| v.as_f64()),
                     parent_task_id: ai_task.get("parent_task_id").and_then(|v| v.as_i64()),
+                    parent_number: ai_task.get("parent_number").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                    parent_name: ai_task.get("parent_name").and_then(|v| v.as_str()).map(|s| s.to_string()),
                     status: ai_task.get("status").and_then(|v| v.as_str()).map(|s| s.to_string()),
                     co_owner_ids: None,
                 };

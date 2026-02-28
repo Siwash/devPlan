@@ -3,7 +3,7 @@ use crate::db::AppDatabase;
 use crate::excel::reader::{ExcelFileInfo, read_excel_info, read_sheet_data, read_sheet_as_maps};
 use crate::excel::smart_matcher::{SheetScore, ColumnMatch, score_sheets, match_columns};
 use crate::excel::writer::export_tasks_to_excel;
-use crate::services::import_export_service::{ImportResult, import_tasks_from_rows};
+use crate::services::import_export_service::{ImportResult, ImportConflict, import_tasks_from_rows, detect_import_conflicts};
 use crate::models::task::TaskFilter;
 use std::collections::HashMap;
 
@@ -45,10 +45,24 @@ pub fn import_excel(
     file_path: String,
     sheet_name: String,
     column_mapping: HashMap<String, String>,
+    conflict_mode: Option<String>,
 ) -> Result<ImportResult, String> {
     let (_, rows) = read_sheet_as_maps(&file_path, &sheet_name)?;
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
-    import_tasks_from_rows(&conn, &rows, &column_mapping)
+    let mode = conflict_mode.unwrap_or_else(|| "create_new".to_string());
+    import_tasks_from_rows(&conn, &rows, &column_mapping, &mode)
+}
+
+#[tauri::command]
+pub fn detect_excel_conflicts(
+    db: State<AppDatabase>,
+    file_path: String,
+    sheet_name: String,
+    column_mapping: HashMap<String, String>,
+) -> Result<Vec<ImportConflict>, String> {
+    let (_, rows) = read_sheet_as_maps(&file_path, &sheet_name)?;
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    detect_import_conflicts(&conn, &rows, &column_mapping)
 }
 
 #[tauri::command]

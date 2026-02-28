@@ -58,6 +58,7 @@ pub fn get_calendar_events(
                 task_type: task.task_type.clone(),
                 priority: task.priority.clone(),
                 status: task.status.clone(),
+                owner_id: task.owner_id,
                 owner_name: task.owner_name.clone(),
                 planned_hours: task.planned_hours,
                 sprint_id: task.sprint_id,

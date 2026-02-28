@@ -5,7 +5,7 @@ pub fn get_all(conn: &Connection, filter: &TaskFilter) -> Result<Vec<Task>> {
     let mut sql = String::from(
         "SELECT t.id, t.external_id, t.task_type, t.name, t.description, t.owner_id, d.name as owner_name, \
          t.sprint_id, s.name as sprint_name, t.priority, t.planned_start, t.planned_end, \
-         t.planned_hours, t.parent_task_id, t.status \
+         t.planned_hours, t.parent_task_id, t.parent_number, t.parent_name, t.status \
          FROM tasks t \
          LEFT JOIN developers d ON t.owner_id = d.id \
          LEFT JOIN sprints s ON t.sprint_id = s.id \
@@ -65,7 +65,9 @@ pub fn get_all(conn: &Connection, filter: &TaskFilter) -> Result<Vec<Task>> {
             planned_end: row.get(11)?,
             planned_hours: row.get(12)?,
             parent_task_id: row.get(13)?,
-            status: row.get(14)?,
+            parent_number: row.get(14)?,
+            parent_name: row.get(15)?,
+            status: row.get(16)?,
             co_owners: None,
         })
     })?;
@@ -84,7 +86,7 @@ pub fn get_by_id(conn: &Connection, id: i64) -> Result<Option<Task>> {
     let mut stmt = conn.prepare(
         "SELECT t.id, t.external_id, t.task_type, t.name, t.description, t.owner_id, d.name as owner_name, \
          t.sprint_id, s.name as sprint_name, t.priority, t.planned_start, t.planned_end, \
-         t.planned_hours, t.parent_task_id, t.status \
+         t.planned_hours, t.parent_task_id, t.parent_number, t.parent_name, t.status \
          FROM tasks t \
          LEFT JOIN developers d ON t.owner_id = d.id \
          LEFT JOIN sprints s ON t.sprint_id = s.id \
@@ -106,7 +108,9 @@ pub fn get_by_id(conn: &Connection, id: i64) -> Result<Option<Task>> {
             planned_end: row.get(11)?,
             planned_hours: row.get(12)?,
             parent_task_id: row.get(13)?,
-            status: row.get(14)?,
+            parent_number: row.get(14)?,
+            parent_name: row.get(15)?,
+            status: row.get(16)?,
             co_owners: None,
         })
     })?;
@@ -124,13 +128,14 @@ pub fn get_by_id(conn: &Connection, id: i64) -> Result<Option<Task>> {
 pub fn create(conn: &Connection, dto: &CreateTaskDto) -> Result<i64> {
     conn.execute(
         "INSERT INTO tasks (external_id, task_type, name, description, owner_id, sprint_id, priority, \
-         planned_start, planned_end, planned_hours, parent_task_id, status) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+         planned_start, planned_end, planned_hours, parent_task_id, parent_number, parent_name, status) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             dto.external_id, dto.task_type, dto.name, dto.description,
             dto.owner_id, dto.sprint_id, dto.priority,
             dto.planned_start, dto.planned_end, dto.planned_hours,
-            dto.parent_task_id, dto.status.as_deref().unwrap_or("待开始")
+            dto.parent_task_id, dto.parent_number, dto.parent_name,
+            dto.status.as_deref().unwrap_or("待开始")
         ],
     )?;
     let task_id = conn.last_insert_rowid();
@@ -150,23 +155,37 @@ pub fn create(conn: &Connection, dto: &CreateTaskDto) -> Result<i64> {
 pub fn update(conn: &Connection, dto: &UpdateTaskDto) -> Result<()> {
     let current = get_by_id(conn, dto.id)?.ok_or(rusqlite::Error::QueryReturnedNoRows)?;
 
+    // Helper: resolve an Option<String> field.
+    // None  => keep current value (field not provided)
+    // Some("") => clear the field (explicit null)
+    // Some(v) => use the new value
+    let resolve_str = |dto_val: &Option<String>, cur_val: &Option<String>| -> Option<String> {
+        match dto_val {
+            None => cur_val.clone(),
+            Some(v) if v.is_empty() => None,
+            Some(v) => Some(v.clone()),
+        }
+    };
+
     conn.execute(
         "UPDATE tasks SET external_id=?1, task_type=?2, name=?3, description=?4, owner_id=?5, \
          sprint_id=?6, priority=?7, planned_start=?8, planned_end=?9, planned_hours=?10, \
-         parent_task_id=?11, status=?12 WHERE id=?13",
+         parent_task_id=?11, parent_number=?12, parent_name=?13, status=?14 WHERE id=?15",
         params![
-            dto.external_id.as_ref().or(current.external_id.as_ref()),
-            dto.task_type.as_ref().or(current.task_type.as_ref()),
+            resolve_str(&dto.external_id, &current.external_id),
+            resolve_str(&dto.task_type, &current.task_type),
             dto.name.as_ref().unwrap_or(&current.name),
-            dto.description.as_ref().or(current.description.as_ref()),
+            resolve_str(&dto.description, &current.description),
             dto.owner_id.or(current.owner_id),
             dto.sprint_id.or(current.sprint_id),
-            dto.priority.as_ref().or(current.priority.as_ref()),
-            dto.planned_start.as_ref().or(current.planned_start.as_ref()),
-            dto.planned_end.as_ref().or(current.planned_end.as_ref()),
+            resolve_str(&dto.priority, &current.priority),
+            resolve_str(&dto.planned_start, &current.planned_start),
+            resolve_str(&dto.planned_end, &current.planned_end),
             dto.planned_hours.or(current.planned_hours),
             dto.parent_task_id.or(current.parent_task_id),
-            dto.status.as_ref().or(current.status.as_ref()),
+            resolve_str(&dto.parent_number, &current.parent_number),
+            resolve_str(&dto.parent_name, &current.parent_name),
+            resolve_str(&dto.status, &current.status),
             dto.id
         ],
     )?;
@@ -213,7 +232,7 @@ pub fn get_tasks_for_developer_in_range(
     let mut stmt = conn.prepare(
         "SELECT t.id, t.external_id, t.task_type, t.name, t.description, t.owner_id, d.name as owner_name, \
          t.sprint_id, s.name as sprint_name, t.priority, t.planned_start, t.planned_end, \
-         t.planned_hours, t.parent_task_id, t.status \
+         t.planned_hours, t.parent_task_id, t.parent_number, t.parent_name, t.status \
          FROM tasks t \
          LEFT JOIN developers d ON t.owner_id = d.id \
          LEFT JOIN sprints s ON t.sprint_id = s.id \
@@ -239,7 +258,9 @@ pub fn get_tasks_for_developer_in_range(
             planned_end: row.get(11)?,
             planned_hours: row.get(12)?,
             parent_task_id: row.get(13)?,
-            status: row.get(14)?,
+            parent_number: row.get(14)?,
+            parent_name: row.get(15)?,
+            status: row.get(16)?,
             co_owners: None,
         })
     })?;
@@ -258,7 +279,7 @@ pub fn get_tasks_in_date_range(
     let mut stmt = conn.prepare(
         "SELECT t.id, t.external_id, t.task_type, t.name, t.description, t.owner_id, d.name as owner_name, \
          t.sprint_id, s.name as sprint_name, t.priority, t.planned_start, t.planned_end, \
-         t.planned_hours, t.parent_task_id, t.status \
+         t.planned_hours, t.parent_task_id, t.parent_number, t.parent_name, t.status \
          FROM tasks t \
          LEFT JOIN developers d ON t.owner_id = d.id \
          LEFT JOIN sprints s ON t.sprint_id = s.id \
@@ -283,7 +304,9 @@ pub fn get_tasks_in_date_range(
             planned_end: row.get(11)?,
             planned_hours: row.get(12)?,
             parent_task_id: row.get(13)?,
-            status: row.get(14)?,
+            parent_number: row.get(14)?,
+            parent_name: row.get(15)?,
+            status: row.get(16)?,
             co_owners: None,
         })
     })?;

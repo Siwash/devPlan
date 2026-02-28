@@ -1,6 +1,6 @@
 [package]
 name = "devplan"
-version = "0.2.0"
+version = "0.3.0"
 description = "DevPlan - 开发项目管理本地客户端"
 authors = ["DevPlan Team"]
 license = "MIT"

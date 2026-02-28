@@ -4,6 +4,7 @@ import { ClockCircleOutlined, UserOutlined } from '@ant-design/icons';
 import { useTaskStore } from '../../stores/taskStore';
 import { useDeveloperStore } from '../../stores/developerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useTaskDetailStore } from '../../stores/taskDetailStore';
 import { STATUS_COLORS, TASK_TYPE_COLORS, PRIORITY_COLORS } from '../../lib/types';
 import type { Task } from '../../lib/types';
 import { formatHours } from '../../lib/formatHours';
@@ -17,6 +18,7 @@ export const TodoBoard: React.FC = () => {
   const { tasks, loading, fetchTasks } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
   const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
+  const { openTaskDetail } = useTaskDetailStore();
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [selectedDevIds, setSelectedDevIds] = useState<number[]>([]);
@@ -208,7 +210,7 @@ export const TodoBoard: React.FC = () => {
                               {task.priority}
                             </Tag>
                           )}
-                          <Text style={{ fontSize: 13 }}>{task.name}</Text>
+                          <Text style={{ fontSize: 13, cursor: 'pointer' }} className="task-name-link" onClick={() => openTaskDetail(task.id)}>{task.name}</Text>
                         </Space>
                       }
                       description={
@@ -281,7 +283,7 @@ export const TodoBoard: React.FC = () => {
                           fontSize: 12,
                           overflow: 'hidden',
                         }}>
-                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500, cursor: 'pointer' }} className="task-name-link" onClick={() => openTaskDetail(task.id)}>
                             {task.name}
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>

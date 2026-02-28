@@ -10,6 +10,7 @@ import { ImportWizard } from './components/excel/ImportWizard';
 import { TodoBoard } from './components/tasks/TodoBoard';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { ChatPanel } from './components/chat/ChatPanel';
+import { StandupPage } from './components/standup/StandupPage';
 import { useTabStore } from './stores/tabStore';
 import { useSettingsStore } from './stores/settingsStore';
 
@@ -21,6 +22,7 @@ const PAGE_MAP: Record<string, { component: React.ReactNode; label: string }> = 
   '/schedule': { component: <DeveloperSchedule />, label: '个人日程' },
   '/gantt': { component: <GanttView />, label: '甘特图' },
   '/import': { component: <ImportWizard />, label: 'Excel 导入' },
+  '/standup': { component: <StandupPage />, label: '早会记录' },
   '/settings': { component: <SettingsPage />, label: '设置' },
   '/chat': { component: <ChatPanel mode="page" />, label: 'AI 对话' },
 };

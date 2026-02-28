@@ -63,6 +63,7 @@ pub fn run() {
             commands::excel_commands::import_excel,
             commands::excel_commands::export_excel,
             commands::excel_commands::get_import_history,
+            commands::excel_commands::detect_excel_conflicts,
             // Settings commands
             commands::settings_commands::get_llm_config,
             commands::settings_commands::save_llm_config,
@@ -81,6 +82,11 @@ pub fn run() {
             commands::llm_commands::llm_identify_similar_tasks,
             commands::llm_commands::llm_auto_fill_tasks,
             commands::llm_commands::llm_test_connection,
+            // Standup commands
+            commands::standup_commands::get_standup_by_date,
+            commands::standup_commands::save_standup,
+            commands::standup_commands::list_standups,
+            commands::standup_commands::delete_standup,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

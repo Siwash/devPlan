@@ -3,6 +3,7 @@ pub mod task_repo;
 pub mod developer_repo;
 pub mod sprint_repo;
 pub mod settings_repo;
+pub mod standup_repo;
 
 use rusqlite::Connection;
 use std::sync::Mutex;
@@ -32,6 +33,7 @@ impl AppDatabase {
         {
             let conn = db.conn.lock().unwrap();
             init::create_tables(&conn)?;
+            init::run_migrations(&conn)?;
         }
         Ok(db)
     }

@@ -17,6 +17,7 @@
 - `calendar.rs` - CalendarEvent, CalendarResource, DeveloperWorkload
 - `settings.rs` - AppSetting, LlmConfig, ExcelTemplateConfig, TemplateColumn
 - `batch.rs` - BatchResult
+- `standup.rs` - StandupMeeting, StandupEntry, StandupItem 等结构体
 
 ### 数据库层 (src/db/)
 - `mod.rs` - AppDatabase 结构体（SQLite 连接管理）
@@ -25,6 +26,7 @@
 - `developer_repo.rs` - 成员 CRUD（含按名查找/自动创建）
 - `sprint_repo.rs` - 迭代/项目 CRUD
 - `settings_repo.rs` - 设置 CRUD（key-value + category）
+- `standup_repo.rs` - 早会记录 CRUD
 
 ### 业务服务层 (src/services/)
 - `mod.rs` - 模块导出
@@ -34,6 +36,7 @@
 - `import_export_service.rs` - Excel 数据导入（自动创建开发人员/迭代）
 - `settings_service.rs` - 设置业务逻辑（LLM 配置、Excel 模板配置）
 - `llm_service.rs` - LLM 编排服务（对话、智能排期、智能分组、自动分配）
+- `standup_service.rs` - 早会业务逻辑
 
 ### Tauri 命令层 (src/commands/)
 - `mod.rs` - 模块导出
@@ -45,6 +48,7 @@
 - `settings_commands.rs` - 6个设置相关 IPC 命令
 - `batch_commands.rs` - 3个批量操作 IPC 命令
 - `llm_commands.rs` - 6个 LLM 相关 IPC 命令
+- `standup_commands.rs` - 4个早会 IPC 命令
 
 ### Excel 处理 (src/excel/)
 - `mod.rs` - 模块导出
@@ -81,6 +85,8 @@
 - `settingsStore.ts` - Zustand 设置状态（LLM 配置、Excel 模板配置）
 - `tabStore.ts` - Zustand 多页签状态（打开/关闭/激活页签）
 - `chatStore.ts` - Zustand 对话状态（消息列表、发送、执行 action、Tauri 事件流式接收）
+- `taskDetailStore.ts` - 任务详情 Drawer 状态管理
+- `standupStore.ts` - 早会记录状态管理
 
 ### 布局组件 (src/components/layout/)
 - `AppLayout.tsx` - 主布局（Sider + Header + TabBar + Content，集成 tabStore）
@@ -94,6 +100,7 @@
 - `EditableTaskTable.tsx` - 可编辑任务表格（点击编辑、失焦保存、防抖）
 - `useClipboardPaste.ts` - Excel 剪贴板粘贴 Hook
 - `AiTaskToolbar.tsx` - AI 任务工具栏（智能分组、智能排期、自动分配）
+- `TaskDetailDrawer.tsx` - 任务详情右侧抽屉（全局挂载，520px）
 
 ### 日历组件 (src/components/calendar/)
 - `CalendarView.tsx` - FullCalendar 集成（月/周/资源时间线视图 + 任务/人员/迭代维度切换 + 颜色图例）
@@ -113,12 +120,18 @@
 - `StatusBadge.tsx` - 状态/优先级/类型标签
 
 ### 设置组件 (src/components/settings/)
-- `SettingsPage.tsx` - 设置页面（LLM 配置 + Excel 模板配置两个 Tab）
+- `SettingsPage.tsx` - 设置页面（通用设置 + LLM 配置 + Excel 模板三个 Tab，通用设置含工时配置和加班日配置）
 
 ### 对话组件 (src/components/chat/)
 - `ChatPanel.tsx` - AI 对话面板（全页 + Drawer 两种模式，欢迎页 + 快捷提问 + 流式输出）
 - `ChatMessage.tsx` - 对话消息渲染（react-markdown + remark-gfm Markdown 渲染 + 流式光标）
 - `ActionCard.tsx` - AI action 预览卡片（中文标签 + 横向布局）
+
+### 早会组件 (src/components/standup/)
+- `StandupPage.tsx` - 早会记录页面（日期切换 + 查看/编辑 + 三栏汇报）
+
+### Hooks (src/hooks/)
+- `useWorkdayStatus.ts` - 开发者工作日状态 Hook（已满/快满日期计算）
 
 ## CI/CD
 - `.github/workflows/release.yml` - GitHub Actions 双平台构建 + Release 发布

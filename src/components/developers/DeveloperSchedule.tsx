@@ -4,6 +4,7 @@ import { WarningOutlined, SyncOutlined } from '@ant-design/icons';
 import { calendarApi } from '../../lib/api';
 import { useDeveloperStore } from '../../stores/developerStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useTaskDetailStore } from '../../stores/taskDetailStore';
 import type { DeveloperWorkload } from '../../lib/types';
 import { formatHours } from '../../lib/formatHours';
 import dayjs, { Dayjs } from 'dayjs';
@@ -16,6 +17,7 @@ const DEV_COLORS = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96', '#13c
 export const DeveloperSchedule: React.FC = () => {
   const { developers, fetchDevelopers } = useDeveloperStore();
   const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
+  const { openTaskDetail } = useTaskDetailStore();
   const [selectedDevIds, setSelectedDevIds] = useState<number[]>([]);
   const [workloadMap, setWorkloadMap] = useState<Record<number, DeveloperWorkload[]>>({});
   const [loading, setLoading] = useState(false);
@@ -263,7 +265,7 @@ export const DeveloperSchedule: React.FC = () => {
                             <div>剩余: {formatHours(w.available_hours, workHoursConfig)}</div>
                             {w.tasks.length > 0 && (
                               <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                                {w.tasks.map(t => <div key={t.task_id}>{t.task_name}: {formatHours(t.daily_hours, workHoursConfig)}</div>)}
+                                {w.tasks.map(t => <div key={t.task_id}><span style={{ cursor: 'pointer' }} className="task-name-link" onClick={() => openTaskDetail(t.task_id)}>{t.task_name}</span>: {formatHours(t.daily_hours, workHoursConfig)}</div>)}
                               </div>
                             )}
                           </div>
@@ -380,7 +382,7 @@ export const DeveloperSchedule: React.FC = () => {
                               {w && <div>最大: {formatHours(w.max_hours, workHoursConfig)} / 剩余: {formatHours(w.available_hours, workHoursConfig)}</div>}
                               {w && w.tasks.length > 0 && (
                                 <div style={{ marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.3)', paddingTop: 4 }}>
-                                  {w.tasks.map(t => <div key={t.task_id}>{t.task_name}: {formatHours(t.daily_hours, workHoursConfig)}</div>)}
+                                  {w.tasks.map(t => <div key={t.task_id}><span style={{ cursor: 'pointer' }} className="task-name-link" onClick={() => openTaskDetail(t.task_id)}>{t.task_name}</span>: {formatHours(t.daily_hours, workHoursConfig)}</div>)}
                                 </div>
                               )}
                             </div>

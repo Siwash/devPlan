@@ -17,6 +17,7 @@ pub struct CalendarEventExtProps {
     pub task_type: Option<String>,
     pub priority: Option<String>,
     pub status: Option<String>,
+    pub owner_id: Option<i64>,
     pub owner_name: Option<String>,
     pub planned_hours: Option<f64>,
     pub sprint_id: Option<i64>,

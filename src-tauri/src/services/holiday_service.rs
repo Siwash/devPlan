@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use chrono::{NaiveDate, Datelike};
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Deserialize)]
 struct HolidayApiResponse {
@@ -53,15 +53,49 @@ pub fn sync_holidays_for_year(conn: &Connection, year: i32) -> Result<usize, Str
     Ok(count)
 }
 
-/// Check if a date is a workday considering Chinese holidays.
-/// Logic:
-/// 1. If the date is in holiday_cache with is_holiday=1, it's NOT a workday (holiday on a weekday)
-/// 2. If the date is in holiday_cache with is_workday=1, it IS a workday (makeup work on weekend)
-/// 3. Otherwise, fall back to Mon-Fri = workday, Sat-Sun = not workday
+/// Read overtime configuration from app_settings.
+/// Returns (weekend_mode, custom_dates_set).
+fn read_overtime_config(conn: &Connection) -> (String, HashSet<String>) {
+    let json_str: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = 'schedule.overtime_days'",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match json_str {
+        Some(s) => {
+            #[derive(Deserialize)]
+            struct OvertimeCfg {
+                weekend: Option<String>,
+                custom_dates: Option<Vec<String>>,
+            }
+            if let Ok(cfg) = serde_json::from_str::<OvertimeCfg>(&s) {
+                let weekend = cfg.weekend.unwrap_or_else(|| "none".to_string());
+                let dates: HashSet<String> = cfg
+                    .custom_dates
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect();
+                (weekend, dates)
+            } else {
+                ("none".to_string(), HashSet::new())
+            }
+        }
+        None => ("none".to_string(), HashSet::new()),
+    }
+}
+
+/// Check if a date is a workday considering Chinese holidays and overtime config.
+/// Priority: holiday_cache > overtime config > default Mon-Fri
+/// 1. holiday_cache hit: is_holiday=1 → false, is_workday=1 → true
+/// 2. overtime config: weekend match or custom_dates match → true
+/// 3. Fallback: Mon-Fri = workday
 pub fn is_workday(conn: &Connection, date: &NaiveDate) -> bool {
     let date_str = date.format("%Y-%m-%d").to_string();
 
-    // Check cache first
+    // Check holiday cache first (highest priority)
     let result: Option<(i32, i32)> = conn.query_row(
         "SELECT is_holiday, is_workday FROM holiday_cache WHERE date = ?1",
         rusqlite::params![date_str],
@@ -77,8 +111,25 @@ pub fn is_workday(conn: &Connection, date: &NaiveDate) -> bool {
         }
     }
 
+    // Check overtime config (second priority)
+    let (weekend_mode, custom_dates) = read_overtime_config(conn);
+    let weekday = date.weekday().num_days_from_monday(); // 0=Mon .. 6=Sun
+
+    // Check weekend overtime
+    if weekday == 5 && (weekend_mode == "saturday" || weekend_mode == "both") {
+        return true;
+    }
+    if weekday == 6 && (weekend_mode == "sunday" || weekend_mode == "both") {
+        return true;
+    }
+
+    // Check custom overtime dates
+    if custom_dates.contains(&date_str) {
+        return true;
+    }
+
     // Fallback: simple weekday check
-    date.weekday().num_days_from_monday() < 5
+    weekday < 5
 }
 
 /// Count working days between two dates (inclusive) considering holidays.

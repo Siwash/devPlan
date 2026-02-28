@@ -14,6 +14,12 @@ export interface EditableCellProps {
   showFillHandle?: boolean;
   /** Called when user starts dragging the fill handle */
   onFillHandleMouseDown?: (e: React.MouseEvent) => void;
+  /** For date type: disable specific dates in the picker */
+  disabledDate?: (current: Dayjs) => boolean;
+  /** For date type: custom cell render for the picker panel */
+  dateCellRender?: (current: Dayjs, info: { originNode: React.ReactNode }) => React.ReactNode;
+  /** Called when the DatePicker panel opens (for lazy loading workload data) */
+  onDatePickerOpen?: () => void;
 }
 
 /**
@@ -32,6 +38,9 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   displayRender,
   showFillHandle = false,
   onFillHandleMouseDown,
+  disabledDate,
+  dateCellRender,
+  onDatePickerOpen,
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<any>(value);
@@ -58,8 +67,11 @@ export const EditableCell: React.FC<EditableCellProps> = ({
   const commit = useCallback(
     (newValue: any) => {
       setEditing(false);
-      if (newValue !== value) {
-        onChange(newValue);
+      // Normalize null/undefined to null for consistent comparison
+      const normalized = newValue ?? null;
+      const originalNormalized = value ?? null;
+      if (normalized !== originalNormalized) {
+        onChange(normalized);
       }
     },
     [onChange, value],
@@ -95,6 +107,9 @@ export const EditableCell: React.FC<EditableCellProps> = ({
           padding: '1px 0',
           width: '100%',
           position: 'relative',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
         onClick={() => {
           // Don't enter edit mode if a fill drag just happened
@@ -153,20 +168,17 @@ export const EditableCell: React.FC<EditableCellProps> = ({
 
     case 'date':
       return (
-        <DatePicker
-          ref={inputRef}
-          size="small"
-          value={draft ? dayjs(draft) : null}
-          style={{ width: '100%' }}
-          autoFocus
-          open
-          onChange={(date: Dayjs | null) => {
-            const formatted = date ? date.format('YYYY-MM-DD') : undefined;
+        <DatePickerCell
+          inputRef={inputRef}
+          draft={draft}
+          disabledDate={disabledDate}
+          dateCellRender={dateCellRender}
+          onDatePickerOpen={onDatePickerOpen}
+          onChange={(formatted) => {
             setDraft(formatted);
             commit(formatted);
           }}
-          onBlur={() => commit(draft)}
-          onKeyDown={handleKeyDown}
+          onCancel={cancel}
         />
       );
 
@@ -198,6 +210,68 @@ export const EditableCell: React.FC<EditableCellProps> = ({
         />
       );
   }
+};
+
+/** Extracted DatePicker cell — no onBlur, uses onOpenChange to detect panel close */
+const DatePickerCell: React.FC<{
+  inputRef: React.RefObject<any>;
+  draft: any;
+  disabledDate?: (current: Dayjs) => boolean;
+  dateCellRender?: (current: Dayjs, info: { originNode: React.ReactNode }) => React.ReactNode;
+  onDatePickerOpen?: () => void;
+  onChange: (formatted: string | undefined) => void;
+  onCancel: () => void;
+}> = ({ inputRef, draft, disabledDate, dateCellRender, onDatePickerOpen, onChange, onCancel }) => {
+  const firedRef = useRef(false);
+  const committedRef = useRef(false);
+
+  useEffect(() => {
+    if (!firedRef.current && onDatePickerOpen) {
+      firedRef.current = true;
+      onDatePickerOpen();
+    }
+  }, []);
+
+  // When panel closes (user clicked outside), cancel editing
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open && !committedRef.current) {
+      onCancel();
+    }
+  }, [onCancel]);
+
+  const handleChange = useCallback((date: Dayjs | null) => {
+    committedRef.current = true;
+    onChange(date ? date.format('YYYY-MM-DD') : undefined);
+  }, [onChange]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onCancel();
+    }
+  }, [onCancel]);
+
+  return (
+    <DatePicker
+      ref={inputRef}
+      size="small"
+      value={draft ? dayjs(draft) : null}
+      style={{ width: '100%' }}
+      autoFocus
+      open
+      disabledDate={disabledDate}
+      cellRender={dateCellRender
+        ? (current, info) => {
+            if (info.type !== 'date') return info.originNode;
+            return dateCellRender(current as Dayjs, { originNode: info.originNode });
+          }
+        : undefined
+      }
+      onChange={handleChange}
+      onOpenChange={handleOpenChange}
+      onKeyDown={handleKeyDown}
+    />
+  );
 };
 
 /** Produce a human-readable display string for a cell value. */

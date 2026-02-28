@@ -16,6 +16,8 @@ pub struct Task {
     pub planned_end: Option<String>,
     pub planned_hours: Option<f64>,
     pub parent_task_id: Option<i64>,
+    pub parent_number: Option<String>,
+    pub parent_name: Option<String>,
     pub status: Option<String>,
     pub co_owners: Option<Vec<CoOwner>>,
 }
@@ -39,6 +41,8 @@ pub struct CreateTaskDto {
     pub planned_end: Option<String>,
     pub planned_hours: Option<f64>,
     pub parent_task_id: Option<i64>,
+    pub parent_number: Option<String>,
+    pub parent_name: Option<String>,
     pub status: Option<String>,
     pub co_owner_ids: Option<Vec<i64>>,
 }
@@ -57,6 +61,8 @@ pub struct UpdateTaskDto {
     pub planned_end: Option<String>,
     pub planned_hours: Option<f64>,
     pub parent_task_id: Option<i64>,
+    pub parent_number: Option<String>,
+    pub parent_name: Option<String>,
     pub status: Option<String>,
     pub co_owner_ids: Option<Vec<i64>>,
 }

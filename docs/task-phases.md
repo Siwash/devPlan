@@ -171,6 +171,39 @@
 - [x] `llm_test_connection` 同样改为作用域锁，只在读取配置时持锁
 - [x] `llm_execute_action` 保持原有锁模式（纯 DB 写操作，耗时极短）
 
+## 阶段 10: 交互增强 + 新模块（进行中）
+
+### 10.1 任务详情 Drawer
+- [x] 新建 TaskDetailDrawer 组件（右侧 520px 抽屉，含完整任务编辑表单）
+- [x] 新建 taskDetailStore（管理 Drawer 开关和当前任务 ID）
+- [x] AppLayout 全局挂载 TaskDetailDrawer
+- [x] TodoBoard 任务名称可点击打开详情
+- [x] CalendarView eventClick 打开详情
+- [x] GanttView 任务名称可点击打开详情
+- [x] DeveloperSchedule Tooltip 中任务名可点击
+
+### 10.2 早会记录模块 (Daily Standup)
+- [x] 数据库新增 standup_meetings / standup_entries / standup_task_links 三表
+- [x] Rust 后端: standup model + repo + service + commands (4个命令)
+- [x] 前端类型定义 + standupApi + standupStore
+- [x] StandupPage 组件（日期切换 + 查看/编辑模式）
+- [x] 每人三栏汇报（昨日完成/今日计划/问题阻碍）+ 关联任务
+- [x] 路由 /standup + 侧边栏菜单项
+
+### 10.3 Excel 导入更新机制
+- [x] 后端冲突检测函数 detect_import_conflicts（按 external_id 和 name 匹配）
+- [x] import_tasks_from_rows 新增 conflict_mode 参数（skip/update/create_new）
+- [x] 新增 Tauri 命令 detect_import_conflicts
+- [x] ImportWizard 新增冲突检测步骤（预览后、导入前）
+- [x] 冲突处理 UI（表格展示冲突 + Radio 选择处理方式）
+
+### 10.4 排期日期智能排除
+- [x] 新建 useWorkdayStatus hook（加载开发者工作量，计算已满/快满日期）
+- [x] EditableCell 日期选择器支持 disabledDate prop
+- [x] EditableTaskTable 为日期列集成工作量检测（任务隔离：不排除同一任务）
+- [x] TaskForm 日期选择器集成工作量检测
+- [x] 已满日期禁用 + 快满日期黄色视觉提示
+
 ## 当前状态
 - 所有 8 个阶段已完成
 - 新增设置系统（LLM 配置 + Excel 模板配置）
@@ -181,3 +214,4 @@
 - AI 修改数据高亮标注 + Markdown 渲染
 - CI/CD: GitHub Actions 双平台构建
 - 新增 Tauri 命令 15 个（settings 6 + batch 3 + llm 6），总计 41 个
+- 阶段 10 进行中：任务详情 Drawer（多视图点击查看）、早会记录模块（Daily Standup 三栏汇报）、Excel 导入冲突检测与更新机制、排期日期智能排除（已满禁用 + 快满提示）

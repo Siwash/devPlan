@@ -9,9 +9,11 @@ export interface TabItem {
 interface TabState {
   tabs: TabItem[];
   activeTab: string;
+  isFullscreen: boolean;
   openTab: (key: string, label: string, closable?: boolean) => void;
   closeTab: (key: string) => void;
   setActiveTab: (key: string) => void;
+  toggleFullscreen: () => void;
 }
 
 const DEFAULT_TAB: TabItem = { key: '/todo', label: '待办任务', closable: false };
@@ -19,6 +21,7 @@ const DEFAULT_TAB: TabItem = { key: '/todo', label: '待办任务', closable: fa
 export const useTabStore = create<TabState>((set, get) => ({
   tabs: [DEFAULT_TAB],
   activeTab: '/todo',
+  isFullscreen: false,
 
   openTab: (key: string, label: string, closable: boolean = true) => {
     const { tabs } = get();
@@ -47,5 +50,9 @@ export const useTabStore = create<TabState>((set, get) => ({
 
   setActiveTab: (key: string) => {
     set({ activeTab: key });
+  },
+
+  toggleFullscreen: () => {
+    set((s) => ({ isFullscreen: !s.isFullscreen }));
   },
 }));

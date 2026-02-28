@@ -219,3 +219,28 @@
 │ 5. 创建/编辑/删除任务，验证 CRUD 完整性                                                                                                                                                                        │
 │ 6. 导出为 Excel，对比原模板格式                                                                                                                                                                                │
 │ 7. 为开发成员添加角色和技能标签，验证存储和展示
+│                                                                                                                                                                                                                │
+│ 6. 早会记录模块 (Daily Standup)                                                                                                                                                                                │
+│                                                                                                                                                                                                                │
+│ 支持团队每日站会记录，按日期管理早会内容：                                                                                                                                                                     │
+│ - 每人三栏汇报：昨日完成（done_items）、今日计划（plan_items）、问题/阻碍（blockers）                                                                                                                          │
+│ - 汇报条目可关联系统中的任务（通过 standup_task_links 表实现多对多关联）                                                                                                                                       │
+│ - 数据库三表设计：standup_meetings（按日期唯一）、standup_entries（每人每会一条）、standup_task_links（条目与任务关联）                                                                                          │
+│ - 前端 StandupPage：日期切换、查看/编辑模式切换、每人卡片式三栏布局                                                                                                                                            │
+│ - 路由 /standup，侧边栏新增菜单入口                                                                                                                                                                            │
+│                                                                                                                                                                                                                │
+│ 7. Excel 导入更新机制                                                                                                                                                                                          │
+│                                                                                                                                                                                                                │
+│ 导入 Excel 时支持与已有数据的冲突检测和处理：                                                                                                                                                                  │
+│ - 冲突检测规则：按 external_id（外部编号）精确匹配 + 按 name（任务名称）模糊匹配                                                                                                                               │
+│ - 三种冲突处理模式：skip（跳过已存在）、update（覆盖更新）、create_new（全部新建）                                                                                                                             │
+│ - 导入向导新增冲突检测步骤（预览数据后、正式导入前），展示冲突列表供用户选择处理方式                                                                                                                           │
+│ - 后端 detect_import_conflicts 函数 + 对应 Tauri 命令                                                                                                                                                          │
+│                                                                                                                                                                                                                │
+│ 8. 排期日期智能排除                                                                                                                                                                                            │
+│                                                                                                                                                                                                                │
+│ 任务排期时 DatePicker 自动标识开发者工作负荷状态：                                                                                                                                                             │
+│ - 已满日期（当日分配工时 >= max_hours_per_day）：禁用不可选                                                                                                                                                    │
+│ - 快满日期（当日分配工时 >= max_hours_per_day * 80%）：黄色视觉提示                                                                                                                                            │
+│ - 任务隔离：编辑某任务时，不将该任务自身的工时计入已占用（避免修改日期时自己阻塞自己）                                                                                                                         │
+│ - 通过 useWorkdayStatus Hook 统一管理，EditableTaskTable 和 TaskForm 的日期选择器均集成

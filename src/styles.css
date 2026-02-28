@@ -255,3 +255,60 @@ body.fill-dragging * {
   cursor: crosshair !important;
   user-select: none !important;
 }
+
+/* ---- Workload date indicators in DatePicker ---- */
+.workload-date-full {
+  border-radius: 4px;
+  background-color: rgba(255, 77, 79, 0.15);
+}
+
+.workload-date-full .ant-picker-cell-inner {
+  color: #ff4d4f;
+  text-decoration: line-through;
+}
+
+.workload-date-nearly-full {
+  border-radius: 4px;
+  background-color: rgba(250, 173, 20, 0.2);
+}
+
+.workload-date-nearly-full .ant-picker-cell-inner {
+  color: #d48806;
+}
+
+/* Task name clickable link style */
+.task-name-link {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+}
+
+.task-name-link:hover {
+  text-decoration: underline;
+}
+
+/* 日历负载热力图 */
+.calendar-day-full {
+  background-color: rgba(255, 77, 79, 0.12) !important;
+}
+.calendar-day-nearly-full {
+  background-color: rgba(250, 173, 20, 0.12) !important;
+}
+
+/* 负载迷你图浮层 */
+.workload-popover {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1050;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  padding: 12px 16px;
+  animation: workload-popover-in 0.2s ease-out;
+}
+
+@keyframes workload-popover-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

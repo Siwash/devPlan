@@ -4,9 +4,10 @@ import type {
   Developer, CreateDeveloperDto, UpdateDeveloperDto,
   Sprint, Project, CreateSprintDto,
   CalendarEvent, CalendarResource, DeveloperWorkload,
-  ExcelFileInfo, SheetScore, ColumnMatch, ImportResult, ImportHistory,
+  ExcelFileInfo, SheetScore, ColumnMatch, ImportResult, ImportHistory, ImportConflict,
   LlmConfig, ExcelTemplateConfig, BatchResult,
   ChatMessage, LlmChatResponse, ChatAction, TaskGroup, ScheduleSuggestion,
+  StandupMeeting, SaveStandupRequest,
 } from './types';
 
 // Task API
@@ -64,11 +65,13 @@ export const excelApi = {
     invoke<ColumnMatch[]>('match_excel_columns', { filePath, sheetName }),
   preview: (filePath: string, sheetName: string, limit?: number) =>
     invoke<[string[], string[][]]>('preview_excel_import', { filePath, sheetName, limit }),
-  import: (filePath: string, sheetName: string, columnMapping: Record<string, string>) =>
-    invoke<ImportResult>('import_excel', { filePath, sheetName, columnMapping }),
+  import: (filePath: string, sheetName: string, columnMapping: Record<string, string>, conflictMode?: string) =>
+    invoke<ImportResult>('import_excel', { filePath, sheetName, columnMapping, conflictMode: conflictMode || 'create_new' }),
   export: (filePath: string, filter: TaskFilter = {}) =>
     invoke<string>('export_excel', { filePath, filter }),
   getHistory: () => invoke<ImportHistory[]>('get_import_history'),
+  detectConflicts: (filePath: string, sheetName: string, columnMapping: Record<string, string>) =>
+    invoke<ImportConflict[]>('detect_excel_conflicts', { filePath, sheetName, columnMapping }),
 };
 
 // Settings API
@@ -102,4 +105,12 @@ export const llmApi = {
   autoFillTasks: (taskIds: number[]) =>
     invoke<UpdateTaskDto[]>('llm_auto_fill_tasks', { taskIds }),
   testConnection: () => invoke<string>('llm_test_connection'),
+};
+
+// Standup API
+export const standupApi = {
+  getByDate: (date: string) => invoke<StandupMeeting | null>('get_standup_by_date', { date }),
+  save: (request: SaveStandupRequest) => invoke<number>('save_standup', { request }),
+  list: (startDate: string, endDate: string) => invoke<StandupMeeting[]>('list_standups', { startDate, endDate }),
+  delete: (id: number) => invoke<void>('delete_standup', { id }),
 };

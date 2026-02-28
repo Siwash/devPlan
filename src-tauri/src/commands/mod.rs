@@ -6,3 +6,4 @@ pub mod excel_commands;
 pub mod settings_commands;
 pub mod batch_commands;
 pub mod llm_commands;
+pub mod standup_commands;

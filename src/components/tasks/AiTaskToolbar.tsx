@@ -258,6 +258,8 @@ export const AiTaskToolbar: React.FC<AiTaskToolbarProps> = ({
           updates.push({
             id,
             external_id: `${g.suggested_external_prefix}-${String(idx + 1).padStart(3, '0')}`,
+            parent_number: g.suggested_external_prefix,
+            parent_name: g.group_name,
           });
         });
       });
