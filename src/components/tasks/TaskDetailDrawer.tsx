@@ -47,11 +47,14 @@ export const TaskDetailDrawer: React.FC = () => {
       const dto = {
         id: taskId!,
         ...values,
-        planned_start: values.planned_start?.format('YYYY-MM-DD'),
-        planned_end: values.planned_end?.format('YYYY-MM-DD'),
+        // 日期清空时发送空字符串 "" 让后端设为 NULL，而非 undefined（会被忽略）
+        planned_start: values.planned_start ? values.planned_start.format('YYYY-MM-DD') : '',
+        planned_end: values.planned_end ? values.planned_end.format('YYYY-MM-DD') : '',
       };
       await updateTask(dto);
       message.success('任务已更新');
+      // 通知日历等组件刷新
+      window.dispatchEvent(new Event('task-updated'));
       closeTaskDetail();
     } catch (e) {
       if (e && typeof e === 'object' && 'errorFields' in e) return;

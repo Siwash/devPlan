@@ -18,6 +18,7 @@ export const TodoBoard: React.FC = () => {
   const { tasks, loading, fetchTasks } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
   const workHoursConfig = useSettingsStore((s) => s.workHoursConfig);
+  const overtimeConfig = useSettingsStore((s) => s.overtimeConfig);
   const { openTaskDetail } = useTaskDetailStore();
   const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
@@ -25,6 +26,7 @@ export const TodoBoard: React.FC = () => {
 
   useEffect(() => {
     fetchDevelopers();
+    useSettingsStore.getState().fetchOvertimeConfig();
   }, []);
 
   useEffect(() => {
@@ -37,13 +39,17 @@ export const TodoBoard: React.FC = () => {
       const d = selectedDate.format('YYYY-MM-DD');
       return { start: d, end: d };
     }
-    const startOfWeek = selectedDate.startOf('week').add(1, 'day'); // Monday
-    const endOfWeek = startOfWeek.add(4, 'day'); // Friday
+    const startOfWeek = selectedDate.startOf('week');
+    const endOfWeek = startOfWeek.add(6, 'day');
     return {
       start: startOfWeek.format('YYYY-MM-DD'),
       end: endOfWeek.format('YYYY-MM-DD'),
     };
   }, [viewMode, selectedDate]);
+
+  const overtimeDateSet = useMemo(() => {
+    return new Set(overtimeConfig.custom_dates);
+  }, [overtimeConfig.custom_dates]);
 
   // Filter tasks that overlap with date range
   const filteredTasks = useMemo(() => {
@@ -79,22 +85,31 @@ export const TodoBoard: React.FC = () => {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [filteredTasks, developers]);
 
-  // Generate week day headers
+  // Generate week day headers (含加班日)
   const weekDays = useMemo(() => {
     if (viewMode !== 'week') return [];
     const days = [];
     const start = dayjs(dateRange.start);
-    for (let i = 0; i < 5; i++) {
+    const end = dayjs(dateRange.end);
+    const dayCount = end.diff(start, 'day') + 1;
+    const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
+    for (let i = 0; i < dayCount; i++) {
       const d = start.add(i, 'day');
+      const date = d.format('YYYY-MM-DD');
+      const dow = d.day(); // 0=Sun, 1=Mon, ..., 6=Sat
+      const isSaturdayOvertime = dow === 6 && (overtimeConfig.weekend === 'saturday' || overtimeConfig.weekend === 'both');
+      const isSundayOvertime = dow === 0 && (overtimeConfig.weekend === 'sunday' || overtimeConfig.weekend === 'both');
+      const isCustomOvertime = overtimeDateSet.has(date);
       days.push({
-        date: d.format('YYYY-MM-DD'),
+        date,
         label: d.format('MM/DD'),
-        weekday: ['一', '二', '三', '四', '五'][i],
-        isToday: d.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD'),
+        weekday: weekdayLabels[dow],
+        isToday: date === dayjs().format('YYYY-MM-DD'),
+        isOvertime: isSaturdayOvertime || isSundayOvertime || isCustomOvertime,
       });
     }
     return days;
-  }, [viewMode, dateRange]);
+  }, [viewMode, dateRange, overtimeConfig.weekend, overtimeDateSet]);
 
   const getStatusLabel = (status?: string) => {
     if (!status) return '未知';
@@ -147,7 +162,7 @@ export const TodoBoard: React.FC = () => {
       <div style={{ marginBottom: 16, padding: '8px 16px', background: '#fafafa', borderRadius: 8, fontSize: 13, color: '#666' }}>
         {viewMode === 'day'
           ? `${selectedDate.format('YYYY年MM月DD日')} ${['日','一','二','三','四','五','六'][selectedDate.day()]}`
-          : `${dateRange.start} ~ ${dateRange.end} (周一 ~ 周五)`
+          : `${dateRange.start} ~ ${dateRange.end}`
         }
       </div>
 
@@ -242,19 +257,22 @@ export const TodoBoard: React.FC = () => {
                 style={{
                   flex: '1 1 0',
                   minWidth: 200,
-                  background: day.isToday ? '#e6f7ff' : '#fafafa',
+                  background: day.isToday ? '#e6f7ff' : day.isOvertime ? '#fff7e6' : '#fafafa',
                   borderRadius: 8,
                   padding: 8,
-                  border: day.isToday ? '2px solid #1890ff' : '1px solid #f0f0f0',
+                  border: day.isToday ? '2px solid #1890ff' : day.isOvertime ? '1px solid #ffd591' : '1px solid #f0f0f0',
                 }}
               >
                 <div style={{
                   textAlign: 'center',
                   fontWeight: 600,
                   marginBottom: 8,
-                  color: day.isToday ? '#1890ff' : '#333',
+                  color: day.isToday ? '#1890ff' : day.isOvertime ? '#fa8c16' : '#333',
                 }}>
-                  <div style={{ fontSize: 12 }}>周{day.weekday}</div>
+                  <div style={{ fontSize: 12 }}>
+                    周{day.weekday}
+                    {day.isOvertime && <span style={{ fontSize: 10, color: '#fa8c16', marginLeft: 2 }}>加班</span>}
+                  </div>
                   <div>{day.label}</div>
                   <Badge count={dayTasks.length} style={{ backgroundColor: day.isToday ? '#1890ff' : '#999' }} />
                 </div>

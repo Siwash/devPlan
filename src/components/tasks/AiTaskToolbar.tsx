@@ -254,11 +254,15 @@ export const AiTaskToolbar: React.FC<AiTaskToolbarProps> = ({
       const updates: UpdateTaskDto[] = [];
       groupResult.forEach((g) => {
         if (!g.suggested_external_prefix) return;
+        const code = g.suggested_external_prefix;
         g.task_ids.forEach((id, idx) => {
+          const existingTask = tasks.find(t => t.id === id);
+          const parentNum = existingTask?.parent_number;
+          const seq = String(idx + 1).padStart(3, '0');
           updates.push({
             id,
-            external_id: `${g.suggested_external_prefix}-${String(idx + 1).padStart(3, '0')}`,
-            parent_number: g.suggested_external_prefix,
+            external_id: parentNum ? `${parentNum}-${code}-${seq}` : `${code}-${seq}`,
+            parent_number: parentNum || code,
             parent_name: g.group_name,
           });
         });

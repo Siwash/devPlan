@@ -25,7 +25,7 @@ export const DeveloperSchedule: React.FC = () => {
   const [includeOvertime, setIncludeOvertime] = useState(false);
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>(() => {
     const today = dayjs();
-    const startOfWeek = today.startOf('week').add(1, 'day');
+    const startOfWeek = today.startOf('week'); // zh-cn locale: Monday
     return [startOfWeek, startOfWeek.add(27, 'day')];
   });
 

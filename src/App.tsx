@@ -30,12 +30,14 @@ const PAGE_MAP: Record<string, { component: React.ReactNode; label: string }> = 
 const App: React.FC = () => {
   const { tabs, activeTab, openTab, setActiveTab } = useTabStore();
   const fetchWorkHoursConfig = useSettingsStore((s) => s.fetchWorkHoursConfig);
+  const fetchOvertimeConfig = useSettingsStore((s) => s.fetchOvertimeConfig);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Load work hours config on app start
+  // Load global configs on app start
   useEffect(() => {
     fetchWorkHoursConfig();
+    fetchOvertimeConfig();
   }, []);
 
   // Sync URL → tab on first load or URL change
