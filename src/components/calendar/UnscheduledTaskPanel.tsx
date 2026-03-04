@@ -4,6 +4,7 @@ import { ReloadOutlined, SearchOutlined, InboxOutlined } from '@ant-design/icons
 import { Draggable } from '@fullcalendar/interaction';
 import { taskApi } from '../../lib/api';
 import type { Task } from '../../lib/types';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 interface Props {
   onTaskAssigned: () => void;
@@ -34,6 +35,7 @@ export const UnscheduledTaskPanel: React.FC<Props> = ({
   const [search, setSearch] = useState('');
   const [showDropZone, setShowDropZone] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hoursPerDay = useSettingsStore((s) => s.workHoursConfig.hours_per_day || 8);
 
   // 用 ref 保存回调，避免 Draggable 重建
   const onDragStartRef = useRef(onDragStart);
@@ -142,7 +144,7 @@ export const UnscheduledTaskPanel: React.FC<Props> = ({
         const sprintId = eventEl.getAttribute('data-sprint-id');
         const sprintName = eventEl.getAttribute('data-sprint-name');
         const taskType = eventEl.getAttribute('data-task-type');
-        const days = hours > 0 ? Math.max(1, Math.ceil(hours / 8)) : 1;
+        const days = hours > 0 ? Math.max(1, Math.ceil(hours / hoursPerDay)) : 1;
 
         // 在 eventData 回调中触发热力图（最可靠的时机）
         if (ownerId && onDragStartRef.current) {
@@ -179,7 +181,7 @@ export const UnscheduledTaskPanel: React.FC<Props> = ({
       draggable.destroy();
       document.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [groupedTasks]);
+  }, [groupedTasks, hoursPerDay]);
 
   return (
     <div className="unscheduled-panel">
