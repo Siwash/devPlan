@@ -62,6 +62,7 @@ pub fn run() {
             commands::excel_commands::preview_excel_import,
             commands::excel_commands::import_excel,
             commands::excel_commands::export_excel,
+            commands::excel_commands::reveal_in_folder,
             commands::excel_commands::get_import_history,
             commands::excel_commands::detect_excel_conflicts,
             // Settings commands

@@ -21,7 +21,7 @@ const PASTE_FIELDS = [
 ];
 
 export const TaskList: React.FC = () => {
-  const { tasks, loading, fetchTasks, createTask, updateTask, deleteTask, taskCount, fetchTaskCount } = useTaskStore();
+  const { tasks, loading, filter, fetchTasks, createTask, updateTask, deleteTask, taskCount, fetchTaskCount } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
   const { sprints, fetchSprints } = useSprintStore();
   const isFullscreen = useTabStore((s) => s.isFullscreen);
@@ -31,6 +31,10 @@ export const TaskList: React.FC = () => {
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [localFilter, setLocalFilter] = useState<TaskFilter>({});
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
+
+  const currentSprintName = filter.sprint_id
+    ? (sprints.find((s) => s.id === filter.sprint_id)?.name || `迭代${filter.sprint_id}`)
+    : '全部迭代';
 
   useEffect(() => {
     fetchTasks();
@@ -261,6 +265,9 @@ export const TaskList: React.FC = () => {
       <ExportDialog
         open={exportVisible}
         onClose={() => setExportVisible(false)}
+        initialFilter={filter}
+        defaultSprintName={currentSprintName}
+        mergedTaskCount={tasks.length}
       />
     </div>
   );

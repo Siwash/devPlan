@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Form, Select, message, Typography, Alert } from 'antd';
+import { Modal, Form, Select, Input, message, Typography, Alert } from 'antd';
 import { save } from '@tauri-apps/plugin-dialog';
 import { excelApi } from '../../lib/api';
 import { useSprintStore } from '../../stores/sprintStore';
@@ -12,9 +12,31 @@ const { Text } = Typography;
 interface ExportDialogProps {
   open: boolean;
   onClose: () => void;
+  initialFilter?: TaskFilter;
+  defaultSprintName?: string;
+  mergedTaskCount?: number;
 }
 
-export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => {
+const sanitizeNamePart = (value: string) =>
+  value.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '').trim();
+
+const buildDefaultExportFileName = (sprintName: string, mergedTaskCount: number) => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const date = `${y}${m}${d}`;
+  const safeSprint = sanitizeNamePart(sprintName || '全部迭代') || '全部迭代';
+  return `所属迭代${safeSprint}任务甘特图合并开发任务${mergedTaskCount}_${date}.xlsx`;
+};
+
+export const ExportDialog: React.FC<ExportDialogProps> = ({
+  open,
+  onClose,
+  initialFilter,
+  defaultSprintName = '全部迭代',
+  mergedTaskCount = 0,
+}) => {
   const [form] = Form.useForm();
   const [exporting, setExporting] = useState(false);
   const { sprints, fetchSprints } = useSprintStore();
@@ -24,14 +46,26 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
     if (open) {
       fetchSprints();
       fetchDevelopers();
+      form.setFieldsValue({
+        sprint_id: initialFilter?.sprint_id,
+        owner_id: initialFilter?.owner_id,
+        status: initialFilter?.status,
+        task_type: initialFilter?.task_type,
+        priority: initialFilter?.priority,
+        search: initialFilter?.search,
+      });
     }
-  }, [open]);
+  }, [open, initialFilter, form]);
 
   const handleExport = async () => {
     try {
       const values = await form.validateFields();
+      const selectedSprintName = values.sprint_id
+        ? (sprints.find((s) => s.id === values.sprint_id)?.name || `迭代${values.sprint_id}`)
+        : defaultSprintName;
+      const defaultPath = buildDefaultExportFileName(selectedSprintName, mergedTaskCount);
       const filePath = await save({
-        defaultPath: 'devplan_export.xlsx',
+        defaultPath,
         filters: [{ name: 'Excel', extensions: ['xlsx'] }],
       });
 
@@ -44,10 +78,23 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
       if (values.status) filter.status = values.status;
       if (values.task_type) filter.task_type = values.task_type;
       if (values.priority) filter.priority = values.priority;
+      if (values.search) filter.search = values.search;
 
       await excelApi.export(filePath, filter);
-      message.success('导出成功: ' + filePath);
       onClose();
+      Modal.confirm({
+        title: '导出成功',
+        content: `已导出文件：${filePath}`,
+        okText: '查看',
+        cancelText: '关闭',
+        onOk: async () => {
+          try {
+            await excelApi.revealInFolder(filePath);
+          } catch (err) {
+            message.error('打开文件位置失败: ' + String(err));
+          }
+        },
+      });
     } catch (e) {
       if (e && typeof e === 'object' && 'errorFields' in e) return;
       message.error('导出失败: ' + String(e));
@@ -68,11 +115,14 @@ export const ExportDialog: React.FC<ExportDialogProps> = ({ open, onClose }) => 
       destroyOnClose
     >
       <Alert
-        message="选择筛选条件导出任务数据。留空则导出全部任务。"
+        message="默认已带入任务列表当前查询条件，可按需调整后导出。留空则导出全部任务。"
         type="info"
         style={{ marginBottom: 16 }}
       />
       <Form form={form} layout="vertical">
+        <Form.Item name="search" label="搜索关键词">
+          <Input allowClear placeholder="名称 / 描述 / 编号" />
+        </Form.Item>
         <Form.Item name="sprint_id" label="迭代">
           <Select
             allowClear

@@ -1,5 +1,5 @@
+use crate::models::task::{CoOwner, CreateTaskDto, Task, TaskFilter, UpdateTaskDto};
 use rusqlite::{params, Connection, Result};
-use crate::models::task::{Task, CoOwner, CreateTaskDto, UpdateTaskDto, TaskFilter};
 
 pub fn get_all(conn: &Connection, filter: &TaskFilter) -> Result<Vec<Task>> {
     let mut sql = String::from(
@@ -40,15 +40,21 @@ pub fn get_all(conn: &Connection, filter: &TaskFilter) -> Result<Vec<Task>> {
         param_idx += 1;
     }
     if let Some(ref search) = filter.search {
-        sql.push_str(&format!(" AND (t.name LIKE ?{} OR t.description LIKE ?{} OR t.external_id LIKE ?{})", param_idx, param_idx, param_idx));
+        sql.push_str(&format!(
+            " AND (t.name LIKE ?{} OR t.description LIKE ?{} OR t.external_id LIKE ?{})",
+            param_idx, param_idx, param_idx
+        ));
         param_values.push(Box::new(format!("%{}%", search)));
         let _ = param_idx;
     }
 
-    sql.push_str(" ORDER BY t.id DESC");
+    // Default ordering: planned_start ascending (nulls last), then id descending
+    // Keep this consistent for both task list and Excel export.
+    sql.push_str(" ORDER BY (t.planned_start IS NULL) ASC, t.planned_start ASC, t.id DESC");
 
     let mut stmt = conn.prepare(&sql)?;
-    let param_refs: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|p| p.as_ref()).collect();
     let rows = stmt.query_map(param_refs.as_slice(), |row| {
         Ok(Task {
             id: row.get(0)?,
@@ -191,7 +197,10 @@ pub fn update(conn: &Connection, dto: &UpdateTaskDto) -> Result<()> {
     )?;
 
     if let Some(ref co_owner_ids) = dto.co_owner_ids {
-        conn.execute("DELETE FROM task_co_owners WHERE task_id = ?1", params![dto.id])?;
+        conn.execute(
+            "DELETE FROM task_co_owners WHERE task_id = ?1",
+            params![dto.id],
+        )?;
         for dev_id in co_owner_ids {
             conn.execute(
                 "INSERT OR IGNORE INTO task_co_owners (task_id, developer_id) VALUES (?1, ?2)",
@@ -212,7 +221,7 @@ pub fn delete(conn: &Connection, id: i64) -> Result<()> {
 pub fn get_co_owners(conn: &Connection, task_id: i64) -> Result<Vec<CoOwner>> {
     let mut stmt = conn.prepare(
         "SELECT tc.developer_id, d.name FROM task_co_owners tc \
-         JOIN developers d ON tc.developer_id = d.id WHERE tc.task_id = ?1"
+         JOIN developers d ON tc.developer_id = d.id WHERE tc.task_id = ?1",
     )?;
     let rows = stmt.query_map(params![task_id], |row| {
         Ok(CoOwner {

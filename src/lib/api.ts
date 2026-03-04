@@ -69,6 +69,8 @@ export const excelApi = {
     invoke<ImportResult>('import_excel', { filePath, sheetName, columnMapping, conflictMode: conflictMode || 'create_new' }),
   export: (filePath: string, filter: TaskFilter = {}) =>
     invoke<string>('export_excel', { filePath, filter }),
+  revealInFolder: (filePath: string) =>
+    invoke<void>('reveal_in_folder', { filePath }),
   getHistory: () => invoke<ImportHistory[]>('get_import_history'),
   detectConflicts: (filePath: string, sheetName: string, columnMapping: Record<string, string>) =>
     invoke<ImportConflict[]>('detect_excel_conflicts', { filePath, sheetName, columnMapping }),
