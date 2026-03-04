@@ -171,6 +171,15 @@
 - [x] `llm_test_connection` 同样改为作用域锁，只在读取配置时持锁
 - [x] `llm_execute_action` 保持原有锁模式（纯 DB 写操作，耗时极短）
 
+### 第十轮修复（自动分配容量与单位统一）
+- [x] `llm_smart_schedule` 与 `llm_auto_fill_tasks` 增加后端归一化排期：LLM 日期作为建议，最终按工作日和 `max_hours_per_day` 逐日分配
+- [x] 自动分配链路统一单位语义：任务排期计算以 `planned_hours`（小时）为准，prompt 明确 `1天 = hours_per_day 小时`
+- [x] 修复未排期拖拽天数换算硬编码：`hours/8` → `hours/hoursPerDay`
+- [x] 新增回归测试：
+  - [x] `normalize_schedule_should_expand_duration_by_daily_capacity`
+  - [x] `normalize_schedule_should_skip_fully_loaded_day`
+- [x] 发布 `v0.3.2`，并推送 `master` + `v0.3.2` tag 触发构建
+
 ## 阶段 10: 交互增强 + 新模块（进行中）
 
 ### 10.1 任务详情 Drawer
@@ -215,3 +224,4 @@
 - CI/CD: GitHub Actions 双平台构建
 - 新增 Tauri 命令 15 个（settings 6 + batch 3 + llm 6），总计 41 个
 - 阶段 10 进行中：任务详情 Drawer（多视图点击查看）、早会记录模块（Daily Standup 三栏汇报）、Excel 导入冲突检测与更新机制、排期日期智能排除（已满禁用 + 快满提示）
+- 自动分配新增“后端容量归一化”保障：默认不再出现单日超出开发者日容量上限

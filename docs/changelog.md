@@ -1,5 +1,25 @@
 # DevPlan 更新记录
 
+## v0.3.2 (2026-03-04)
+
+### Bug 修复
+
+- **AI 智能排期/自动分配可能出现单日超载**：新增后端“容量归一化”分配逻辑，LLM 结果改为建议值，最终按开发者 `max_hours_per_day` 与工作日容量逐日排布，避免单日超过上限
+- **工时单位语义不一致**：在 AI 排期提示中明确 `hours` 为小时，并按系统配置 `hours_per_day` 进行“天↔小时”换算说明，避免固定 `8h` 语义漂移
+- **未排期任务拖拽时天数换算硬编码**：`UnscheduledTaskPanel` 从 `hours/8` 改为 `hours/hoursPerDay`，与设置项保持一致
+
+### 测试与质量保证
+
+- 新增后端回归测试（`llm_commands.rs`）：
+  - `normalize_schedule_should_expand_duration_by_daily_capacity`
+  - `normalize_schedule_should_skip_fully_loaded_day`
+- 验证通过：`cargo check`、`npm run build`、`cargo test normalize_schedule_should -- --nocapture`
+
+### 发布
+
+- 发布版本：`v0.3.2`
+- 版本文件同步更新：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`（及对应 lock 文件）
+
 ## v0.3.1 (2026-03-02)
 
 ### Bug 修复
