@@ -304,6 +304,7 @@ export interface ExcelTemplateConfig {
   column_mapping: TemplateColumn[];
   header_row?: number;
   default_sheet_name?: string;
+  export_columns?: string[];
 }
 
 export interface TemplateColumn {

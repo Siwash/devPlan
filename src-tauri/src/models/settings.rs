@@ -21,6 +21,7 @@ pub struct ExcelTemplateConfig {
     pub column_mapping: Vec<TemplateColumn>,
     pub header_row: Option<i32>,
     pub default_sheet_name: Option<String>,
+    pub export_columns: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

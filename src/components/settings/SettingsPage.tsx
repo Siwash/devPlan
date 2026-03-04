@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Tabs, Form, Input, InputNumber, Select, Button, Table, Space, message, Popconfirm, Segmented, DatePicker, Tag } from 'antd';
-import { PlusOutlined, DeleteOutlined, ApiOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, ApiOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { llmApi } from '../../lib/api';
 import type { LlmConfig, ExcelTemplateConfig, TemplateColumn, WorkHoursConfig, OvertimeConfig } from '../../lib/types';
@@ -20,6 +20,25 @@ const TASK_FIELDS = [
   { value: 'status', label: '状态' },
   { value: 'parent_task_id', label: '父任务' },
 ];
+
+const EXPORT_COLUMN_OPTIONS = [
+  { value: 'task_type', label: 'Task类型' },
+  { value: 'external_id', label: '编号' },
+  { value: 'name', label: '名称' },
+  { value: 'description', label: '详细描述' },
+  { value: 'owner_name', label: '负责人' },
+  { value: 'co_owners', label: '其他负责人' },
+  { value: 'sprint_name', label: '所属迭代' },
+  { value: 'priority', label: '优先级' },
+  { value: 'planned_start', label: '计划开始时间' },
+  { value: 'planned_end', label: '计划结束时间' },
+  { value: 'planned_hours', label: '计划工作量' },
+  { value: 'parent_number', label: '父级编号' },
+  { value: 'parent_name', label: '父级项名称' },
+  { value: 'status', label: '进度' },
+];
+
+const DEFAULT_EXPORT_COLUMNS: string[] = EXPORT_COLUMN_OPTIONS.map((it) => it.value);
 
 const LlmConfigTab: React.FC = () => {
   const [form] = Form.useForm();
@@ -125,6 +144,7 @@ const DEFAULT_TEMPLATE_COLUMNS: TemplateColumn[] = [
 const ExcelTemplateTab: React.FC = () => {
   const { excelTemplateConfig, saveExcelTemplateConfig, fetchExcelTemplateConfig, loading } = useSettingsStore();
   const [columns, setColumns] = useState<TemplateColumn[]>([]);
+  const [exportColumns, setExportColumns] = useState<string[]>([]);
   const [headerRow, setHeaderRow] = useState<number | undefined>(undefined);
   const [sheetName, setSheetName] = useState<string>('');
 
@@ -133,12 +153,18 @@ const ExcelTemplateTab: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (excelTemplateConfig && excelTemplateConfig.column_mapping.length > 0) {
-      setColumns(excelTemplateConfig.column_mapping);
-      setHeaderRow(excelTemplateConfig.header_row ?? undefined);
-      setSheetName(excelTemplateConfig.default_sheet_name ?? '');
+    if (excelTemplateConfig) {
+      setColumns(excelTemplateConfig.column_mapping.length > 0 ? excelTemplateConfig.column_mapping : DEFAULT_TEMPLATE_COLUMNS);
+      setExportColumns(
+        excelTemplateConfig.export_columns && excelTemplateConfig.export_columns.length > 0
+          ? excelTemplateConfig.export_columns
+          : DEFAULT_EXPORT_COLUMNS
+      );
+      setHeaderRow(excelTemplateConfig.header_row ?? 0);
+      setSheetName(excelTemplateConfig.default_sheet_name ?? '任务清单');
     } else {
       setColumns(DEFAULT_TEMPLATE_COLUMNS);
+      setExportColumns(DEFAULT_EXPORT_COLUMNS);
       setHeaderRow(0);
       setSheetName('任务清单');
     }
@@ -149,6 +175,7 @@ const ExcelTemplateTab: React.FC = () => {
       column_mapping: columns,
       header_row: headerRow,
       default_sheet_name: sheetName || undefined,
+      export_columns: exportColumns,
     };
     await saveExcelTemplateConfig(config);
     message.success('Excel 模板配置已保存');
@@ -222,10 +249,69 @@ const ExcelTemplateTab: React.FC = () => {
 
   const resetToDefault = () => {
     setColumns(DEFAULT_TEMPLATE_COLUMNS);
+    setExportColumns(DEFAULT_EXPORT_COLUMNS);
     setHeaderRow(0);
     setSheetName('任务清单');
     message.info('已恢复为默认模板');
   };
+
+  const updateExportColumn = (index: number, value: string) => {
+    const next = [...exportColumns];
+    next[index] = value;
+    setExportColumns(next);
+  };
+
+  const moveExportColumn = (index: number, offset: -1 | 1) => {
+    const target = index + offset;
+    if (target < 0 || target >= exportColumns.length) return;
+    const next = [...exportColumns];
+    const current = next[index];
+    next[index] = next[target];
+    next[target] = current;
+    setExportColumns(next);
+  };
+
+  const addExportColumn = () => {
+    setExportColumns([...exportColumns, DEFAULT_EXPORT_COLUMNS[0]]);
+  };
+
+  const removeExportColumn = (index: number) => {
+    setExportColumns(exportColumns.filter((_, i) => i !== index));
+  };
+
+  const exportColumnsTable = [
+    {
+      title: '顺序',
+      width: 70,
+      render: (_: any, __: any, index: number) => index + 1,
+    },
+    {
+      title: '导出列',
+      dataIndex: 'value',
+      render: (_: any, __: any, index: number) => (
+        <Select
+          value={exportColumns[index]}
+          onChange={(v) => updateExportColumn(index, v)}
+          options={EXPORT_COLUMN_OPTIONS}
+          style={{ width: '100%' }}
+          size="small"
+        />
+      ),
+    },
+    {
+      title: '操作',
+      width: 150,
+      render: (_: any, __: any, index: number) => (
+        <Space size={4}>
+          <Button type="text" size="small" icon={<ArrowUpOutlined />} onClick={() => moveExportColumn(index, -1)} disabled={index === 0} />
+          <Button type="text" size="small" icon={<ArrowDownOutlined />} onClick={() => moveExportColumn(index, 1)} disabled={index === exportColumns.length - 1} />
+          <Popconfirm title="确认删除?" onConfirm={() => removeExportColumn(index)}>
+            <Button type="text" size="small" danger icon={<DeleteOutlined />} disabled={exportColumns.length <= 1} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <div style={{ maxWidth: 700 }}>
@@ -238,6 +324,21 @@ const ExcelTemplateTab: React.FC = () => {
         <span style={{ marginLeft: 16 }}>默认 Sheet:</span>
         <Input value={sheetName} onChange={e => setSheetName(e.target.value)} placeholder="Sheet 名称" size="small" style={{ width: 150 }} />
       </Space>
+
+      <div style={{ marginBottom: 8, fontWeight: 500 }}>导出列顺序（按此顺序生成 Excel）</div>
+      <Table
+        dataSource={exportColumns.map((v, i) => ({ key: i, value: v }))}
+        columns={exportColumnsTable}
+        pagination={false}
+        size="small"
+        style={{ marginBottom: 16 }}
+        footer={() => (
+          <Button type="dashed" onClick={addExportColumn} block icon={<PlusOutlined />}>
+            添加导出列
+          </Button>
+        )}
+      />
+
       <Table
         dataSource={columns.map((c, i) => ({ ...c, key: i }))}
         columns={tableColumns}
