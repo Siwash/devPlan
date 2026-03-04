@@ -2,3 +2,8 @@ node_modules/
 dist/
 nul
 *.local
+*.xlsx
+*.xls
+.tmp-buttons/
+.tmp-tabulator/
+plugins-workspace-ref/
