@@ -708,7 +708,7 @@ dependencies = [
 
 [[package]]
 name = "devplan"
-version = "0.3.0"
+version = "0.3.2"
 dependencies = [
  "calamine",
  "chrono",
