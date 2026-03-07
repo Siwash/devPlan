@@ -1,11 +1,13 @@
 {
   "name": "devplan",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test:standup-markdown-utils": "node --test --experimental-strip-types src/components/standup/standupMarkdownUtils.spec.mjs",
+    "test:e2e:standup-markdown": "playwright test tests/standup-markdown.spec.ts",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -15,6 +17,7 @@
   "description": "DevPlan - 开发项目管理本地客户端",
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.0",
+    "@playwright/test": "^1.56.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
