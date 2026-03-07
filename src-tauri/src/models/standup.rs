@@ -1,4 +1,19 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
+/// Markdown-first standup contract used by Tauri commands.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct StandupMarkdownRecord {
+    pub id: i64,
+    pub date: String,
+    pub content: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SaveStandupMarkdownRequest {
+    pub date: String,
+    pub content: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct StandupMeeting {
@@ -39,4 +54,25 @@ pub struct SaveEntryRequest {
     pub done_items: Vec<StandupItem>,
     pub plan_items: Vec<StandupItem>,
     pub blockers: Vec<StandupItem>,
+}
+
+impl From<StandupMeeting> for StandupMarkdownRecord {
+    fn from(value: StandupMeeting) -> Self {
+        Self {
+            id: value.id,
+            date: value.meeting_date,
+            content: value.notes.unwrap_or_default(),
+            created_at: value.created_at,
+        }
+    }
+}
+
+impl From<SaveStandupMarkdownRequest> for SaveStandupRequest {
+    fn from(value: SaveStandupMarkdownRequest) -> Self {
+        Self {
+            meeting_date: value.date,
+            notes: Some(value.content),
+            entries: vec![],
+        }
+    }
 }
