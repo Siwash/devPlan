@@ -7,7 +7,7 @@ import type {
   ExcelFileInfo, SheetScore, ColumnMatch, ImportResult, ImportHistory, ImportConflict,
   LlmConfig, ExcelTemplateConfig, BatchResult,
   ChatMessage, LlmChatResponse, ChatAction, TaskGroup, ScheduleSuggestion,
-  StandupMeeting, SaveStandupRequest,
+  StandupDocument, SaveStandupDocumentRequest,
 } from './types';
 
 // Task API
@@ -111,8 +111,8 @@ export const llmApi = {
 
 // Standup API
 export const standupApi = {
-  getByDate: (date: string) => invoke<StandupMeeting | null>('get_standup_by_date', { date }),
-  save: (request: SaveStandupRequest) => invoke<number>('save_standup', { request }),
-  list: (startDate: string, endDate: string) => invoke<StandupMeeting[]>('list_standups', { startDate, endDate }),
+  getByDate: (date: string) => invoke<StandupDocument | null>('get_standup_by_date', { date }),
+  save: (request: SaveStandupDocumentRequest) => invoke<number>('save_standup', { request }),
+  list: (startDate: string, endDate: string) => invoke<StandupDocument[]>('list_standups', { startDate, endDate }),
   delete: (id: number) => invoke<void>('delete_standup', { id }),
 };

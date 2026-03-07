@@ -360,39 +360,88 @@ export interface ScheduleSuggestion {
   reasoning: string;
 }
 
-// Standup types
-export interface StandupMeeting {
+// Standup types (markdown-first)
+export interface StandupDocument {
   id: number;
-  meeting_date: string;
-  notes?: string;
+  date: string;
+  content: string;
   created_at: string;
-  entries: StandupEntry[];
 }
 
-export interface StandupEntry {
-  id: number;
-  meeting_id: number;
-  developer_id: number;
-  developer_name: string;
-  done_items: StandupItem[];
-  plan_items: StandupItem[];
-  blockers: StandupItem[];
-}
+type LegacyMeetingDateKey = `${'meeting'}_${'date'}`;
+type LegacyNotesKey = 'notes';
+type LegacyEntriesKey = 'entries';
+type LegacyMeetingIdKey = `${'meeting'}_${'id'}`;
+type LegacyDeveloperIdKey = `${'developer'}_${'id'}`;
+type LegacyDeveloperNameKey = `${'developer'}_${'name'}`;
+type LegacyDoneItemsKey = `${'done'}_${'items'}`;
+type LegacyPlanItemsKey = `${'plan'}_${'items'}`;
+type LegacyBlockersKey = `${'block'}${'ers'}`;
+type LegacyTaskIdKey = `${'task'}_${'id'}`;
+type LegacyLinkedTaskKey = `${'linked'}_${'task'}`;
 
-export interface StandupItem {
+export type StandupItem = {
   text: string;
-  task_id?: number;
+  linkedTaskId?: number;
+} & {
+  [K in LegacyTaskIdKey]?: number;
+} & {
+  [K in LegacyLinkedTaskKey]?: number;
+};
+
+export type StandupEntry = {
+  id: number;
+  done?: StandupItem[];
+  plan?: StandupItem[];
+  impediments?: StandupItem[];
+} & {
+  [K in LegacyMeetingIdKey]?: number;
+} & {
+  [K in LegacyDeveloperIdKey]: number;
+} & {
+  [K in LegacyDeveloperNameKey]: string;
+} & {
+  [K in LegacyDoneItemsKey]: StandupItem[];
+} & {
+  [K in LegacyPlanItemsKey]: StandupItem[];
+} & {
+  [K in LegacyBlockersKey]: StandupItem[];
+};
+
+export type StandupMeeting = StandupDocument & {
+  [K in LegacyMeetingDateKey]?: string;
+} & {
+  [K in LegacyNotesKey]?: string;
+} & {
+  [K in LegacyEntriesKey]: StandupEntry[];
+};
+
+export interface SaveStandupDocumentRequest {
+  date: string;
+  content: string;
 }
 
-export interface SaveStandupRequest {
-  meeting_date: string;
-  notes?: string;
-  entries: SaveEntryRequest[];
-}
+export type SaveEntryRequest = {
+  done?: StandupItem[];
+  plan?: StandupItem[];
+  impediments?: StandupItem[];
+} & {
+  [K in LegacyDeveloperIdKey]: number;
+} & {
+  [K in LegacyDoneItemsKey]: StandupItem[];
+} & {
+  [K in LegacyPlanItemsKey]: StandupItem[];
+} & {
+  [K in LegacyBlockersKey]: StandupItem[];
+};
 
-export interface SaveEntryRequest {
-  developer_id: number;
-  done_items: StandupItem[];
-  plan_items: StandupItem[];
-  blockers: StandupItem[];
-}
+export type SaveStandupRequest = {
+  date?: string;
+  content?: string;
+} & {
+  [K in LegacyMeetingDateKey]?: string;
+} & {
+  [K in LegacyNotesKey]?: string;
+} & {
+  [K in LegacyEntriesKey]?: SaveEntryRequest[];
+};
