@@ -198,6 +198,11 @@
 - [x] StandupPage 组件（日期切换 + 查看/编辑模式）
 - [x] 每人三栏汇报（昨日完成/今日计划/问题阻碍）+ 关联任务
 - [x] 路由 /standup + 侧边栏菜单项
+- [x] 早会模块重构为“按日期单文档”的集中式 Markdown 编辑
+- [x] 移除早会与人员/任务的编辑关联，统一存储 Markdown 内容
+- [x] 历史日期记录支持按段落拖拽复制到今天早会，并支持光标插入 / 文末回退
+- [x] 旧 standup entries 迁移到 Markdown 内容，且 notes 与 entries 可合并保留并保持幂等
+- [x] 新增早会模块自动化验证：Playwright 场景测试 + Rust 回归测试 + Markdown 工具函数测试
 
 ### 10.3 Excel 导入更新机制
 - [x] 后端冲突检测函数 detect_import_conflicts（按 external_id 和 name 匹配）
@@ -225,3 +230,5 @@
 - 新增 Tauri 命令 15 个（settings 6 + batch 3 + llm 6），总计 41 个
 - 阶段 10 进行中：任务详情 Drawer（多视图点击查看）、早会记录模块（Daily Standup 三栏汇报）、Excel 导入冲突检测与更新机制、排期日期智能排除（已满禁用 + 快满提示）
 - 自动分配新增“后端容量归一化”保障：默认不再出现单日超出开发者日容量上限
+- 早会模块已完成第二阶段重构：集中 Markdown 编辑、历史段落复用、迁移回填与自动化测试已落地
+- 已完成 `v0.3.4` 发版准备：待推送 `master` 与 `v0.3.4` tag
