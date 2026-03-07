@@ -1,467 +1,394 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Card, DatePicker, Button, Input, Select, Tag, Avatar, Space, Typography,
-  Spin, Empty, message, Popconfirm, Divider, Row, Col,
+  Button,
+  Card,
+  Divider,
+  Empty,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+  Typography,
+  message,
 } from 'antd';
-import {
-  PlusOutlined, DeleteOutlined, EditOutlined, SaveOutlined,
-  CloseOutlined, CheckCircleOutlined, AimOutlined, WarningOutlined,
-} from '@ant-design/icons';
-import dayjs, { Dayjs } from 'dayjs';
+import { DeleteOutlined, SaveOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
+
 import { useStandupStore } from '../../stores/standupStore';
-import { useDeveloperStore } from '../../stores/developerStore';
-import { useTaskStore } from '../../stores/taskStore';
-import type {
-  StandupItem, SaveStandupRequest, SaveEntryRequest, StandupEntry,
-} from '../../lib/types';
+import type { StandupDocument } from '../../lib/types';
+import { insertMarkdownBlock, splitMarkdownParagraphs } from './standupMarkdownUtils';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
-interface EditEntryData {
-  developer_id: number;
-  done_items: StandupItem[];
-  plan_items: StandupItem[];
-  blockers: StandupItem[];
+const DATE_FORMAT = 'YYYY-MM-DD';
+const HISTORY_RANGE_DAYS = 180;
+
+interface CaretRange {
+  start: number;
+  end: number;
 }
 
 export const StandupPage: React.FC = () => {
-  const { currentMeeting, loading, fetchMeeting, saveMeeting, deleteMeeting } = useStandupStore();
-  const { developers, fetchDevelopers } = useDeveloperStore();
-  const { tasks, fetchTasks } = useTaskStore();
+  const {
+    currentDocument,
+    documents,
+    loading,
+    fetchDocument,
+    saveDocument,
+    deleteDocument,
+    listDocuments,
+  } = useStandupStore();
 
-  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
-  const [editing, setEditing] = useState(false);
-  const [editEntries, setEditEntries] = useState<EditEntryData[]>([]);
-  const [editNotes, setEditNotes] = useState('');
+  const [todayDate] = useState<string>(() => dayjs().format(DATE_FORMAT));
+  const [editorContent, setEditorContent] = useState('');
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [selectedHistoryDate, setSelectedHistoryDate] = useState<string>();
+  const [insertHint, setInsertHint] = useState<{ type: 'success' | 'warning'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Load data on mount
+  const editorRef = useRef<TextAreaRef>(null);
+  const caretRef = useRef<CaretRange | null>(null);
+
+  const historyStartDate = useMemo(
+    () => dayjs(todayDate).subtract(HISTORY_RANGE_DAYS, 'day').format(DATE_FORMAT),
+    [todayDate],
+  );
+
   useEffect(() => {
-    fetchDevelopers();
-    fetchTasks();
+    void fetchDocument(todayDate);
+  }, [fetchDocument, todayDate]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        await listDocuments(historyStartDate, todayDate);
+      } catch (e) {
+        message.error(`加载历史记录失败: ${String(e)}`);
+      }
+    };
+    void loadHistory();
+  }, [historyStartDate, listDocuments, todayDate]);
+
+  useEffect(() => {
+    setEditorContent(currentDocument?.content || '');
+    caretRef.current = null;
+    setInsertHint(null);
+  }, [currentDocument?.content, currentDocument?.id]);
+
+  const historyDocuments = useMemo(() => {
+    const uniqueByDate = new Map<string, StandupDocument>();
+    documents.forEach((doc) => {
+      if (doc.date === todayDate) return;
+      if (!doc.content.trim()) return;
+      if (!uniqueByDate.has(doc.date)) {
+        uniqueByDate.set(doc.date, doc);
+      }
+    });
+    return Array.from(uniqueByDate.values()).sort(
+      (a, b) => dayjs(b.date).valueOf() - dayjs(a.date).valueOf(),
+    );
+  }, [documents, todayDate]);
+
+  useEffect(() => {
+    if (historyDocuments.length === 0) {
+      setSelectedHistoryDate(undefined);
+      return;
+    }
+    const exists = historyDocuments.some((doc) => doc.date === selectedHistoryDate);
+    if (!exists) {
+      setSelectedHistoryDate(historyDocuments[0].date);
+    }
+  }, [historyDocuments, selectedHistoryDate]);
+
+  const selectedHistoryDocument = useMemo(
+    () => historyDocuments.find((doc) => doc.date === selectedHistoryDate),
+    [historyDocuments, selectedHistoryDate],
+  );
+
+  const historyBlocks = useMemo(
+    () => splitMarkdownParagraphs(selectedHistoryDocument?.content || ''),
+    [selectedHistoryDocument?.content],
+  );
+
+  const historyDateOptions = useMemo(
+    () => historyDocuments.map((doc) => ({ label: doc.date, value: doc.date })),
+    [historyDocuments],
+  );
+
+  const getNativeTextarea = useCallback((): HTMLTextAreaElement | null => {
+    return editorRef.current?.resizableTextArea?.textArea ?? null;
   }, []);
 
-  // Load meeting when date changes
-  useEffect(() => {
-    fetchMeeting(selectedDate.format('YYYY-MM-DD'));
-  }, [selectedDate]);
-
-  const activeDevelopers = developers.filter((d) => d.is_active);
-
-  const taskOptions = tasks.map((t) => ({
-    label: `${t.external_id ? t.external_id + ' - ' : ''}${t.name}`,
-    value: t.id,
-  }));
-
-  // Enter edit mode
-  const startEditing = useCallback(() => {
-    if (currentMeeting) {
-      // Pre-fill from existing meeting
-      const entries: EditEntryData[] = activeDevelopers.map((dev) => {
-        const existing = currentMeeting.entries.find((e) => e.developer_id === dev.id);
-        if (existing) {
-          return {
-            developer_id: dev.id,
-            done_items: [...existing.done_items],
-            plan_items: [...existing.plan_items],
-            blockers: [...existing.blockers],
-          };
-        }
-        return createEmptyEntry(dev.id);
-      });
-      setEditEntries(entries);
-      setEditNotes(currentMeeting.notes || '');
-    } else {
-      // Create new: auto-fill "plan" with in-progress tasks
-      const entries: EditEntryData[] = activeDevelopers.map((dev) => {
-        const entry = createEmptyEntry(dev.id);
-        // Auto-fill plan_items with tasks that are in-progress for this developer
-        const inProgressTasks = tasks.filter(
-          (t) => t.owner_id === dev.id && t.status === '进行中'
-        );
-        entry.plan_items = inProgressTasks.map((t) => ({
-          text: t.name,
-          task_id: t.id,
-        }));
-        return entry;
-      });
-      setEditEntries(entries);
-      setEditNotes('');
-    }
-    setEditing(true);
-  }, [currentMeeting, activeDevelopers, tasks]);
-
-  const cancelEditing = () => {
-    setEditing(false);
-  };
-
-  const createEmptyEntry = (developerId: number): EditEntryData => ({
-    developer_id: developerId,
-    done_items: [],
-    plan_items: [],
-    blockers: [],
-  });
-
-  // Item manipulation helpers
-  const addItem = (devIndex: number, field: 'done_items' | 'plan_items' | 'blockers') => {
-    setEditEntries((prev) => {
-      const next = [...prev];
-      next[devIndex] = {
-        ...next[devIndex],
-        [field]: [...next[devIndex][field], { text: '', task_id: undefined }],
+  const rememberCaret = useCallback((target: HTMLTextAreaElement | null) => {
+    if (!target) return;
+    const { selectionStart, selectionEnd } = target;
+    if (Number.isFinite(selectionStart) && Number.isFinite(selectionEnd)) {
+      caretRef.current = {
+        start: selectionStart,
+        end: selectionEnd,
       };
-      return next;
-    });
-  };
+    }
+  }, []);
 
-  const removeItem = (devIndex: number, field: 'done_items' | 'plan_items' | 'blockers', itemIndex: number) => {
-    setEditEntries((prev) => {
-      const next = [...prev];
-      const items = [...next[devIndex][field]];
-      items.splice(itemIndex, 1);
-      next[devIndex] = { ...next[devIndex], [field]: items };
-      return next;
-    });
-  };
+  const insertBlockToEditor = useCallback((rawBlock: string) => {
+    const textarea = getNativeTextarea();
+    const directStart = textarea?.selectionStart;
+    const directEnd = textarea?.selectionEnd;
+    const hasDirectCaret = Number.isFinite(directStart) && Number.isFinite(directEnd);
+    const caret = hasDirectCaret
+      ? { start: Number(directStart), end: Number(directEnd) }
+      : caretRef.current;
 
-  const updateItemText = (devIndex: number, field: 'done_items' | 'plan_items' | 'blockers', itemIndex: number, text: string) => {
-    setEditEntries((prev) => {
-      const next = [...prev];
-      const items = [...next[devIndex][field]];
-      items[itemIndex] = { ...items[itemIndex], text };
-      next[devIndex] = { ...next[devIndex], [field]: items };
-      return next;
-    });
-  };
+    const result = insertMarkdownBlock(editorContent, rawBlock, caret);
+    if (result.mode === 'noop') {
+      return;
+    }
 
-  const updateItemTask = (devIndex: number, field: 'done_items' | 'plan_items' | 'blockers', itemIndex: number, taskId: number | undefined) => {
-    setEditEntries((prev) => {
-      const next = [...prev];
-      const items = [...next[devIndex][field]];
-      items[itemIndex] = { ...items[itemIndex], task_id: taskId };
-      next[devIndex] = { ...next[devIndex], [field]: items };
-      return next;
-    });
-  };
+    setEditorContent(result.nextContent);
 
-  const handleSave = async () => {
+    if (result.mode === 'append') {
+      setInsertHint({ type: 'warning', text: '未检测到光标位置，已追加到文末。' });
+      message.warning('未检测到光标位置，已追加到文末。');
+    } else {
+      setInsertHint({ type: 'success', text: '已按当前光标位置插入段落。' });
+      message.success('段落已插入当前光标位置');
+    }
+
+    requestAnimationFrame(() => {
+      const node = getNativeTextarea();
+      if (!node || result.nextCaret === null) return;
+      node.focus();
+      node.selectionStart = result.nextCaret;
+      node.selectionEnd = result.nextCaret;
+      rememberCaret(node);
+    });
+  }, [editorContent, getNativeTextarea, rememberCaret]);
+
+  const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      // Filter out entries with no content
-      const entries: SaveEntryRequest[] = editEntries
-        .filter((e) =>
-          e.done_items.some((i) => i.text.trim()) ||
-          e.plan_items.some((i) => i.text.trim()) ||
-          e.blockers.some((i) => i.text.trim())
-        )
-        .map((e) => ({
-          developer_id: e.developer_id,
-          done_items: e.done_items.filter((i) => i.text.trim()),
-          plan_items: e.plan_items.filter((i) => i.text.trim()),
-          blockers: e.blockers.filter((i) => i.text.trim()),
-        }));
-
-      const request: SaveStandupRequest = {
-        meeting_date: selectedDate.format('YYYY-MM-DD'),
-        notes: editNotes.trim() || undefined,
-        entries,
-      };
-
-      await saveMeeting(request);
-      message.success('早会记录已保存');
-      setEditing(false);
+      await saveDocument({
+        date: todayDate,
+        content: editorContent,
+      });
+      await listDocuments(historyStartDate, todayDate);
+      message.success('今日早会记录已保存');
     } catch (e) {
-      message.error('保存失败: ' + String(e));
+      message.error(`保存失败: ${String(e)}`);
     } finally {
       setSaving(false);
     }
-  };
+  }, [editorContent, historyStartDate, listDocuments, saveDocument, todayDate]);
 
-  const handleDelete = async () => {
-    if (!currentMeeting) return;
+  const handleDelete = useCallback(async () => {
+    if (!currentDocument) return;
     try {
-      await deleteMeeting(currentMeeting.id);
-      message.success('早会记录已删除');
+      await deleteDocument(currentDocument.id);
+      await listDocuments(historyStartDate, todayDate);
+      setEditorContent('');
+      setInsertHint(null);
+      message.success('今日早会记录已删除');
     } catch (e) {
-      message.error('删除失败: ' + String(e));
+      message.error(`删除失败: ${String(e)}`);
     }
-  };
+  }, [currentDocument, deleteDocument, historyStartDate, listDocuments, todayDate]);
 
-  const getDevColor = (developerId: number): string => {
-    const dev = developers.find((d) => d.id === developerId);
-    return dev?.avatar_color || '#1890ff';
-  };
+  const handleEditorDrop = useCallback((event: React.DragEvent<HTMLTextAreaElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const block = event.dataTransfer.getData('application/x-standup-markdown-block')
+      || event.dataTransfer.getData('text/plain');
+    insertBlockToEditor(block);
+  }, [insertBlockToEditor]);
 
-  const getDevName = (developerId: number): string => {
-    const dev = developers.find((d) => d.id === developerId);
-    return dev?.name || '未知';
-  };
-
-  const getTaskName = (taskId: number): string => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return `任务#${taskId}`;
-    return task.external_id ? `${task.external_id} - ${task.name}` : task.name;
-  };
-
-  // Render a single item list in view mode
-  const renderViewItems = (items: StandupItem[]) => {
-    if (!items || items.length === 0) {
-      return <Text type="secondary" style={{ fontSize: 13 }}>无</Text>;
-    }
-    return (
-      <ul style={{ margin: 0, paddingLeft: 20 }}>
-        {items.map((item, idx) => (
-          <li key={idx} style={{ marginBottom: 4 }}>
-            <Text>{item.text}</Text>
-            {item.task_id && (
-              <Tag color="blue" style={{ marginLeft: 8, cursor: 'pointer' }}>
-                {getTaskName(item.task_id)}
-              </Tag>
-            )}
-          </li>
-        ))}
-      </ul>
-    );
-  };
-
-  // Render an entry card in view mode
-  const renderViewEntry = (entry: StandupEntry) => {
-    const color = getDevColor(entry.developer_id);
-    return (
-      <Card
-        key={entry.id}
-        style={{ marginBottom: 16 }}
-        title={
-          <Space>
-            <Avatar style={{ backgroundColor: color }} size="small">
-              {entry.developer_name[0]}
-            </Avatar>
-            <Text strong>{entry.developer_name}</Text>
-          </Space>
-        }
-      >
-        <div style={{ marginBottom: 12 }}>
-          <div style={{
-            borderLeft: '3px solid #52c41a',
-            paddingLeft: 12,
-            marginBottom: 8,
-          }}>
-            <Text strong style={{ color: '#52c41a' }}>
-              <CheckCircleOutlined style={{ marginRight: 4 }} />
-              昨日完成
-            </Text>
-            {renderViewItems(entry.done_items)}
-          </div>
-        </div>
-        <div style={{ marginBottom: 12 }}>
-          <div style={{
-            borderLeft: '3px solid #1890ff',
-            paddingLeft: 12,
-            marginBottom: 8,
-          }}>
-            <Text strong style={{ color: '#1890ff' }}>
-              <AimOutlined style={{ marginRight: 4 }} />
-              今日计划
-            </Text>
-            {renderViewItems(entry.plan_items)}
-          </div>
-        </div>
-        <div>
-          <div style={{
-            borderLeft: '3px solid #fa8c16',
-            paddingLeft: 12,
-          }}>
-            <Text strong style={{ color: '#fa8c16' }}>
-              <WarningOutlined style={{ marginRight: 4 }} />
-              问题/阻碍
-            </Text>
-            {renderViewItems(entry.blockers)}
-          </div>
-        </div>
-      </Card>
-    );
-  };
-
-  // Render edit section for items
-  const renderEditItems = (
-    devIndex: number,
-    field: 'done_items' | 'plan_items' | 'blockers',
-    label: string,
-    color: string,
-    icon: React.ReactNode,
-  ) => {
-    const items = editEntries[devIndex][field];
-    return (
-      <div style={{
-        borderLeft: `3px solid ${color}`,
-        paddingLeft: 12,
-        marginBottom: 12,
-      }}>
-        <Text strong style={{ color, display: 'block', marginBottom: 8 }}>
-          {icon} {label}
-        </Text>
-        {items.map((item, itemIndex) => (
-          <Row key={itemIndex} gutter={8} style={{ marginBottom: 6 }} align="middle">
-            <Col flex="auto">
-              <Input
-                placeholder="输入内容..."
-                value={item.text}
-                onChange={(e) => updateItemText(devIndex, field, itemIndex, e.target.value)}
-                size="small"
-              />
-            </Col>
-            <Col flex="200px">
-              <Select
-                placeholder="关联任务"
-                allowClear
-                showSearch
-                optionFilterProp="label"
-                options={taskOptions}
-                value={item.task_id}
-                onChange={(val) => updateItemTask(devIndex, field, itemIndex, val)}
-                size="small"
-                style={{ width: '100%' }}
-              />
-            </Col>
-            <Col>
-              <Button
-                type="text"
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-                onClick={() => removeItem(devIndex, field, itemIndex)}
-              />
-            </Col>
-          </Row>
-        ))}
-        <Button
-          type="dashed"
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => addItem(devIndex, field)}
-          style={{ marginTop: 4 }}
-        >
-          添加
-        </Button>
-      </div>
-    );
-  };
+  const handleHistoryDragStart = useCallback((event: React.DragEvent<HTMLDivElement>, block: string) => {
+    event.dataTransfer.setData('application/x-standup-markdown-block', block);
+    event.dataTransfer.setData('text/plain', block);
+    event.dataTransfer.effectAllowed = 'copy';
+  }, []);
 
   return (
-    <div style={{ height: '100%', overflow: 'auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
-          <Title level={4} style={{ margin: 0 }}>早会记录</Title>
-          <DatePicker
-            value={selectedDate}
-            onChange={(date) => date && setSelectedDate(date)}
-            allowClear={false}
-          />
+    <div style={{ height: '100%', overflow: 'auto' }} data-testid="standup-page">
+      <div
+        style={{
+          marginBottom: 16,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Space size={12} wrap>
+          <Title level={4} style={{ margin: 0 }}>集中早会编辑</Title>
+          <Tag color="blue" data-testid="standup-today-date-tag">今日 {todayDate}</Tag>
+          <Text type="secondary">单文档 Markdown 编辑（支持历史段落拖拽复制）</Text>
         </Space>
+
         <Space>
-          {!editing && (
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={saving}
+            onClick={() => void handleSave()}
+            data-testid="standup-save-btn"
+          >
+            保存今日记录
+          </Button>
+          {currentDocument && (
+            <Popconfirm
+              title="确定删除今日早会记录？"
+              onConfirm={() => void handleDelete()}
+              okText="确定"
+              cancelText="取消"
+            >
+              <Button danger icon={<DeleteOutlined />} data-testid="standup-delete-btn">删除</Button>
+            </Popconfirm>
+          )}
+        </Space>
+      </div>
+
+      <Spin spinning={loading && !saving}>
+        <Card
+          title="今日 Markdown"
+          style={{ marginBottom: 16 }}
+          extra={(
+            <Space>
+              <Text type="secondary">预览</Text>
+              <Switch
+                checked={previewVisible}
+                onChange={setPreviewVisible}
+                data-testid="standup-preview-toggle"
+              />
+            </Space>
+          )}
+        >
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            可直接输入，或将下方历史段落拖拽到编辑器中。拖拽为复制，历史内容不会改变。
+          </Text>
+
+          <TextArea
+            ref={editorRef}
+            rows={14}
+            value={editorContent}
+            onChange={(event) => {
+              setEditorContent(event.target.value);
+              rememberCaret(event.target);
+            }}
+            onClick={(event) => rememberCaret(event.currentTarget)}
+            onSelect={(event) => rememberCaret(event.currentTarget)}
+            onKeyUp={(event) => rememberCaret(event.currentTarget)}
+            onFocus={(event) => rememberCaret(event.currentTarget)}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'copy';
+            }}
+            onDrop={handleEditorDrop}
+            placeholder="请输入今日 Standup Markdown 内容..."
+            data-testid="standup-today-editor"
+          />
+
+          {insertHint && (
+            <Text
+              type={insertHint.type === 'warning' ? 'warning' : 'success'}
+              style={{ display: 'block', marginTop: 8 }}
+              data-testid="standup-insert-hint"
+            >
+              {insertHint.text}
+            </Text>
+          )}
+
+          {previewVisible && (
             <>
-              <Button
-                type="primary"
-                icon={currentMeeting ? <EditOutlined /> : <PlusOutlined />}
-                onClick={startEditing}
+              <Divider style={{ margin: '14px 0' }} />
+              <div
+                className="chat-markdown"
+                style={{
+                  border: '1px solid #f0f0f0',
+                  borderRadius: 8,
+                  background: '#fafafa',
+                  padding: 14,
+                  minHeight: 120,
+                }}
+                data-testid="standup-markdown-preview"
               >
-                {currentMeeting ? '编辑早会' : '新建今日早会'}
-              </Button>
-              {currentMeeting && (
-                <Popconfirm
-                  title="确定删除此早会记录？"
-                  onConfirm={handleDelete}
-                  okText="确定"
-                  cancelText="取消"
+                {editorContent.trim() ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{editorContent}</ReactMarkdown>
+                ) : (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可预览内容" />
+                )}
+              </div>
+            </>
+          )}
+        </Card>
+
+        <Card title="历史日期段落拖拽复制" data-testid="standup-history-panel">
+          {historyDocuments.length === 0 ? (
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="暂无历史记录可拖拽"
+              data-testid="standup-history-empty"
+            />
+          ) : (
+            <>
+              <div data-testid="standup-history-date-selector" style={{ marginBottom: 12 }}>
+                <Select
+                  style={{ width: 280, maxWidth: '100%' }}
+                  options={historyDateOptions}
+                  value={selectedHistoryDate}
+                  onChange={setSelectedHistoryDate}
+                  placeholder="选择历史日期"
+                />
+              </div>
+
+              {historyBlocks.length === 0 ? (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="该日期内容为空，暂无可拖拽段落"
+                  data-testid="standup-history-date-empty"
+                />
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: 12,
+                  }}
                 >
-                  <Button danger icon={<DeleteOutlined />}>删除</Button>
-                </Popconfirm>
+                  {historyBlocks.map((block, index) => (
+                    <div
+                      key={`${selectedHistoryDate}_${index}`}
+                      draggable
+                      onDragStart={(event) => handleHistoryDragStart(event, block)}
+                      style={{
+                        border: '1px dashed #91caff',
+                        background: '#f0f8ff',
+                        borderRadius: 8,
+                        padding: 12,
+                        cursor: 'grab',
+                        minHeight: 92,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                      }}
+                      data-testid={`standup-history-block-${index}`}
+                    >
+                      <Text type="secondary">段落 {index + 1}</Text>
+                      <Text style={{ whiteSpace: 'pre-wrap', userSelect: 'none' }}>{block}</Text>
+                    </div>
+                  ))}
+                </div>
               )}
             </>
           )}
-          {editing && (
-            <>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                onClick={handleSave}
-                loading={saving}
-              >
-                保存
-              </Button>
-              <Button icon={<CloseOutlined />} onClick={cancelEditing}>取消</Button>
-            </>
-          )}
-        </Space>
-      </div>
-
-      <Spin spinning={loading}>
-        {/* View Mode */}
-        {!editing && (
-          <>
-            {currentMeeting ? (
-              <>
-                <Row gutter={16}>
-                  {currentMeeting.entries.map((entry) => (
-                    <Col key={entry.id} xs={24} sm={24} md={12} lg={8} xl={8}>
-                      {renderViewEntry(entry)}
-                    </Col>
-                  ))}
-                </Row>
-                {currentMeeting.notes && (
-                  <>
-                    <Divider />
-                    <Card size="small" title="会议备注">
-                      <Text>{currentMeeting.notes}</Text>
-                    </Card>
-                  </>
-                )}
-              </>
-            ) : (
-              <Empty description={`${selectedDate.format('YYYY-MM-DD')} 暂无早会记录`} />
-            )}
-          </>
-        )}
-
-        {/* Edit Mode */}
-        {editing && (
-          <>
-            {editEntries.map((entry, devIndex) => {
-              const devName = getDevName(entry.developer_id);
-              const devColor = getDevColor(entry.developer_id);
-              return (
-                <Card
-                  key={entry.developer_id}
-                  style={{ marginBottom: 16 }}
-                  title={
-                    <Space>
-                      <Avatar style={{ backgroundColor: devColor }} size="small">
-                        {devName[0]}
-                      </Avatar>
-                      <Text strong>{devName}</Text>
-                    </Space>
-                  }
-                >
-                  {renderEditItems(devIndex, 'done_items', '昨日完成', '#52c41a', <CheckCircleOutlined />)}
-                  {renderEditItems(devIndex, 'plan_items', '今日计划', '#1890ff', <AimOutlined />)}
-                  {renderEditItems(devIndex, 'blockers', '问题/阻碍', '#fa8c16', <WarningOutlined />)}
-                </Card>
-              );
-            })}
-
-            <Card size="small" title="会议备注" style={{ marginBottom: 16 }}>
-              <TextArea
-                rows={3}
-                placeholder="输入会议备注..."
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-              />
-            </Card>
-          </>
-        )}
+        </Card>
       </Spin>
     </div>
   );
