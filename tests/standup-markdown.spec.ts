@@ -8,6 +8,16 @@ interface MockStandupDocument {
   updated_at: string;
 }
 
+interface MockTask {
+  id: number;
+  name: string;
+  external_id?: string;
+  owner_name?: string;
+  status?: string;
+  planned_start?: string;
+  planned_end?: string;
+}
+
 interface TauriMockOptions {
   failSaveStandup?: boolean;
 }
@@ -24,12 +34,14 @@ const installTauriMock = async (
   page: Page,
   seedDocs: MockStandupDocument[] = [],
   options: TauriMockOptions = {},
+  seedTasks: MockTask[] = [],
 ): Promise<void> => {
-  await page.addInitScript(({ docs, mockOptions }) => {
+  await page.addInitScript(({ docs, tasks, mockOptions }) => {
     const STORAGE_KEY = '__pw_standup_docs__';
     const NEXT_ID_KEY = '__pw_standup_next_id__';
     let memoryDocs = [...docs];
     let memoryNextId = docs.reduce((acc, doc) => Math.max(acc, Number(doc?.id ?? 0)), 0) + 1;
+    const memoryTasks = [...tasks];
 
     const readSession = (key: string): string | null => {
       try {
@@ -153,6 +165,10 @@ const installTauriMock = async (
           return null;
         }
 
+        if (cmd === 'list_tasks') {
+          return memoryTasks;
+        }
+
         if (cmd.startsWith('list_')) return [];
         if (cmd.startsWith('get_')) return null;
         if (cmd.startsWith('count_')) return 0;
@@ -172,13 +188,14 @@ const installTauriMock = async (
     };
 
     (globalThis as { isTauri?: boolean }).isTauri = true;
-  }, { docs: seedDocs, mockOptions: options });
+  }, { docs: seedDocs, tasks: seedTasks, mockOptions: options });
 };
 
 const openStandupPage = async (
   page: Page,
   seedDocs: MockStandupDocument[] = [],
   options: TauriMockOptions = {},
+  seedTasks: MockTask[] = [],
 ): Promise<void> => {
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
@@ -189,7 +206,7 @@ const openStandupPage = async (
     }
   });
 
-  await installTauriMock(page, seedDocs, options);
+  await installTauriMock(page, seedDocs, options, seedTasks);
   await page.goto('/#/todo');
   await page.getByRole('menuitem', { name: '早会记录' }).click();
   await page.waitForLoadState('domcontentloaded');
@@ -206,6 +223,42 @@ const openStandupPage = async (
       + `body=${bodyText.slice(0, 800)}`,
     );
   }
+};
+
+const dragHistoryBlockToEditor = async (
+  page: Page,
+  options: {
+    blockTestId?: string;
+    sourceDate: string;
+    blockText: string;
+    blockIndex?: number;
+  },
+): Promise<void> => {
+  const { blockTestId = 'standup-history-block-0' } = options;
+  const sourceBlock = page.getByTestId(blockTestId);
+  const editorDropzone = page.getByTestId('standup-markdown-editor');
+
+  await expect(sourceBlock).toBeVisible();
+  await expect(editorDropzone).toBeVisible();
+
+  // Get bounding boxes for the source block and the editor drop zone.
+  const srcBox = await sourceBlock.boundingBox();
+  const tgtBox = await editorDropzone.boundingBox();
+  if (!srcBox || !tgtBox) throw new Error('Cannot get bounding boxes for drag elements');
+
+  const srcX = srcBox.x + srcBox.width / 2;
+  const srcY = srcBox.y + srcBox.height / 2;
+  const tgtX = tgtBox.x + tgtBox.width / 2;
+  const tgtY = tgtBox.y + tgtBox.height / 2;
+
+  // Simulate the pointer-event drag: mousedown → mousemove (past threshold) → mouseup
+  await page.mouse.move(srcX, srcY);
+  await page.mouse.down();
+  // Move beyond the 5px threshold used in DRAG_THRESHOLD_PX
+  await page.mouse.move(srcX + 10, srcY + 10, { steps: 3 });
+  // Move to the editor target
+  await page.mouse.move(tgtX, tgtY, { steps: 5 });
+  await page.mouse.up();
 };
 
 test('save and reload keeps today markdown content', async ({ page }) => {
@@ -258,17 +311,36 @@ test('history load supports switching selected date', async ({ page }) => {
 
   await expect(page.getByTestId('standup-history-block-0')).toContainText('昨天段落 A');
 
-  await page.getByTestId('standup-history-panel').getByRole('combobox').click();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+  await page.getByTestId('standup-history-wheel-item-1').click();
   await expect(page.getByTestId('standup-history-block-0')).toContainText('更早历史段落');
 });
 
+test('history dock can collapse and expand without losing current view', async ({ page }) => {
+  await openStandupPage(page, [
+    {
+      id: 41,
+      date: offsetDate(-1),
+      content: '可折叠历史段落',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    },
+  ]);
+
+  await expect(page.getByTestId('standup-history-block-0')).toBeVisible();
+  await page.getByTestId('standup-history-toggle-btn').click();
+  await expect(page.getByTestId('standup-history-collapsed')).toBeVisible();
+
+  await page.getByTestId('standup-history-toggle-btn').click();
+  await expect(page.getByTestId('standup-history-block-0')).toBeVisible();
+});
+
 test('drag-copy intent inserts at caret and keeps history block unchanged', async ({ page }) => {
+  const historyDate = offsetDate(-1);
+
   await openStandupPage(page, [
     {
       id: 21,
-      date: offsetDate(-1),
+      date: historyDate,
       content: '历史段落 Alpha\n\n历史段落 Beta',
       created_at: '2026-03-01T00:00:00.000Z',
       updated_at: '2026-03-01T00:00:00.000Z',
@@ -287,25 +359,47 @@ test('drag-copy intent inserts at caret and keeps history block unchanged', asyn
     textarea.setSelectionRange(start, start + marker.length);
   });
 
-  const sourceBlock = page.getByTestId('standup-history-block-0');
-  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-  await dataTransfer.evaluate((dt) => {
-    dt.setData('application/x-standup-markdown-block', '历史段落 Alpha');
-    dt.setData('text/plain', '历史段落 Alpha');
+  await dragHistoryBlockToEditor(page, {
+    sourceDate: historyDate,
+    blockText: '历史段落 Alpha',
   });
-  await sourceBlock.dispatchEvent('dragstart', { dataTransfer });
-  await editor.dispatchEvent('drop', { dataTransfer });
 
-  await expect(page.getByTestId('standup-insert-hint')).toContainText('已按当前光标位置插入段落');
-  await expect(editor).toHaveValue('before 历史段落 Alpha after');
+  await expect(page.getByTestId('standup-insert-hint')).toContainText('已按当前光标位置插入内容');
+  await expect(editor).toHaveValue(`before > 引用自 ${historyDate} · 段落 1\n>\n> 历史段落 Alpha after`);
   await expect(page.getByTestId('standup-history-block-0')).toContainText('历史段落 Alpha');
 });
 
+test('real drag gesture into editor shell inserts history block', async ({ page }) => {
+  const historyDate = offsetDate(-1);
+
+  await openStandupPage(page, [
+    {
+      id: 121,
+      date: historyDate,
+      content: '真实拖拽段落',
+      created_at: '2026-03-01T00:00:00.000Z',
+      updated_at: '2026-03-01T00:00:00.000Z',
+    },
+  ]);
+
+  const editor = page.getByTestId('standup-today-editor');
+  await editor.fill('拖拽前内容');
+
+  await dragHistoryBlockToEditor(page, {
+    sourceDate: historyDate,
+    blockText: '真实拖拽段落',
+  });
+
+  await expect(editor).toHaveValue(/真实拖拽段落/);
+});
+
 test('drop falls back to append when caret position is unavailable', async ({ page }) => {
+  const historyDate = offsetDate(-1);
+
   await openStandupPage(page, [
     {
       id: 22,
-      date: offsetDate(-1),
+      date: historyDate,
       content: '历史段落 Fallback',
       created_at: '2026-03-01T00:00:00.000Z',
       updated_at: '2026-03-01T00:00:00.000Z',
@@ -320,6 +414,7 @@ test('drop falls back to append when caret position is unavailable', async ({ pa
   await expect(page.getByText('今日早会记录已保存')).toBeVisible();
 
   await page.reload();
+  await page.getByRole('tab', { name: '早会记录' }).click();
 
   const reloadedEditor = page.getByTestId('standup-today-editor');
   await expect(reloadedEditor).toHaveValue(baseText);
@@ -338,30 +433,62 @@ test('drop falls back to append when caret position is unavailable', async ({ pa
     });
   });
 
-  const sourceBlock = page.getByTestId('standup-history-block-0');
-  const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-  await dataTransfer.evaluate((dt) => {
-    dt.setData('application/x-standup-markdown-block', '历史段落 Fallback');
-    dt.setData('text/plain', '历史段落 Fallback');
+  await dragHistoryBlockToEditor(page, {
+    sourceDate: historyDate,
+    blockText: '历史段落 Fallback',
   });
-  await sourceBlock.dispatchEvent('dragstart', { dataTransfer });
-  await reloadedEditor.dispatchEvent('drop', { dataTransfer });
 
   await expect(page.getByTestId('standup-insert-hint')).toContainText('未检测到光标位置，已追加到文末。');
-  await expect(reloadedEditor).toHaveValue(`${baseText}\n\n历史段落 Fallback`);
+  await expect(reloadedEditor).toHaveValue(`${baseText}\n\n> 引用自 ${historyDate} · 段落 1\n>\n> 历史段落 Fallback`);
 });
 
-test('preview toggle shows and hides markdown preview panel', async ({ page }) => {
+test('markdown editor supports switching to live preview and keeps a larger editing area', async ({ page }) => {
   await openStandupPage(page);
 
-  await page.getByTestId('standup-today-editor').fill('# Standup 标题');
-  await page.getByTestId('standup-preview-toggle').click();
+  const editor = page.getByTestId('standup-today-editor');
+  const editorHeight = await page
+    .locator('[data-testid="standup-markdown-editor"] .w-md-editor')
+    .evaluate((node) => (node as HTMLDivElement).clientHeight);
+  expect(editorHeight).toBeGreaterThanOrEqual(500);
+  await editor.fill('# Standup 标题');
+  await page.getByTestId('standup-preview-mode').getByText('编辑+预览').click();
 
-  await expect(page.getByTestId('standup-markdown-preview')).toBeVisible();
-  await expect(page.getByTestId('standup-markdown-preview').getByRole('heading', { level: 1 })).toHaveText('Standup 标题');
+  const previewPanel = page.locator('[data-testid="standup-markdown-editor"] .w-md-editor-preview');
+  await expect(previewPanel).toBeVisible();
+  await expect(previewPanel.getByRole('heading', { level: 1 })).toHaveText('Standup 标题');
+});
 
-  await page.getByTestId('standup-preview-toggle').click();
-  await expect(page.getByTestId('standup-markdown-preview')).toBeHidden();
+test('today todo import inserts editable markdown template only after explicit action', async ({ page }) => {
+  const today = todayDate();
+
+  await openStandupPage(page, [], {}, [
+    {
+      id: 101,
+      external_id: 'DEV-101',
+      name: '接入 Markdown 编辑器',
+      owner_name: '张三',
+      status: '进行中',
+      planned_start: today,
+      planned_end: today,
+    },
+    {
+      id: 102,
+      name: '未来任务',
+      planned_start: offsetDate(1),
+      planned_end: offsetDate(1),
+    },
+  ]);
+
+  const editor = page.getByTestId('standup-today-editor');
+  await expect(editor).toHaveValue('');
+
+  await page.getByTestId('standup-import-today-todos-btn').click();
+
+  await expect(page.getByText('已导入 1 条今日待办')).toBeVisible();
+  await expect(editor).toHaveValue(new RegExp(`${today} 待办同步`));
+  await expect(editor).toHaveValue(/DEV-101/);
+  await expect(editor).toHaveValue(/接入 Markdown 编辑器/);
+  await expect(editor).toHaveValue(/- 进度：/);
 });
 
 test('empty-history state is rendered when no historical document exists', async ({ page }) => {

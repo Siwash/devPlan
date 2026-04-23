@@ -3,7 +3,7 @@ import { Tabs, theme } from 'antd';
 import { useTabStore } from '../../stores/tabStore';
 import { useNavigate } from 'react-router-dom';
 
-export const TabBar: React.FC = () => {
+export const TabBar: React.FC<{ standupMode?: boolean }> = ({ standupMode = false }) => {
   const { tabs, activeTab, setActiveTab, closeTab } = useTabStore();
   const navigate = useNavigate();
   const { token } = theme.useToken();
@@ -15,11 +15,15 @@ export const TabBar: React.FC = () => {
   }));
 
   return (
-    <div style={{
-      background: token.colorBgContainer,
-      borderBottom: `1px solid ${token.colorBorderSecondary}`,
-      paddingLeft: 16,
-    }}>
+    <div
+      className={`app-tabbar${standupMode ? ' is-standup' : ''}`}
+      style={{
+        background: standupMode ? 'transparent' : token.colorBgContainer,
+        borderBottom: standupMode ? 'none' : `1px solid ${token.colorBorderSecondary}`,
+        paddingLeft: standupMode ? 8 : 16,
+        paddingRight: standupMode ? 8 : 0,
+      }}
+    >
       <Tabs
         type="editable-card"
         hideAdd

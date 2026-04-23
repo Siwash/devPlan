@@ -46,8 +46,9 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const navigate = useNavigate();
   const location = useLocation();
   const { token } = theme.useToken();
-  const { openTab } = useTabStore();
+  const { openTab, activeTab } = useTabStore();
   const isFullscreen = useTabStore((s) => s.isFullscreen);
+  const isStandupPage = activeTab === '/standup';
 
   const handleMenuClick = (key: string) => {
     const label = MENU_LABEL_MAP[key] || key;
@@ -134,15 +135,19 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
             />
           </span>
         </Header>
-        <TabBar />
-        <Content style={{
-          margin: 16,
-          padding: 24,
-          background: token.colorBgContainer,
-          borderRadius: token.borderRadiusLG,
-          overflow: 'auto',
-          height: 'calc(100vh - 48px - 40px - 32px)',
-        }}>
+        <TabBar standupMode={isStandupPage} />
+        <Content
+          className={`app-layout-content${isStandupPage ? ' is-standup' : ''}`}
+          style={{
+            margin: isStandupPage ? 10 : 16,
+            padding: isStandupPage ? 10 : 24,
+            background: isStandupPage ? 'transparent' : token.colorBgContainer,
+            borderRadius: isStandupPage ? 22 : token.borderRadiusLG,
+            overflow: 'auto',
+            height: 'calc(100vh - 48px - 40px - 32px)',
+            boxShadow: isStandupPage ? 'none' : undefined,
+          }}
+        >
           {children}
         </Content>
       </Layout>
