@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   Task, CreateTaskDto, UpdateTaskDto, TaskFilter,
   Developer, CreateDeveloperDto, UpdateDeveloperDto,
-  Sprint, Project, CreateSprintDto,
+  Sprint, Project, CreateSprintDto, UpdateSprintDto, DeleteSprintResult,
   CalendarEvent, CalendarResource, DeveloperWorkload,
   ExcelFileInfo, SheetScore, ColumnMatch, ImportResult, ImportHistory, ImportConflict,
   LlmConfig, ExcelTemplateConfig, BatchResult,
@@ -33,7 +33,8 @@ export const developerApi = {
 export const sprintApi = {
   list: () => invoke<Sprint[]>('list_sprints'),
   create: (dto: CreateSprintDto) => invoke<number>('create_sprint', { dto }),
-  delete: (id: number) => invoke<void>('delete_sprint', { id }),
+  update: (dto: UpdateSprintDto) => invoke<Sprint>('update_sprint', { dto }),
+  delete: (id: number) => invoke<DeleteSprintResult>('delete_sprint', { id }),
 };
 
 // Project API

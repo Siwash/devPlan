@@ -11,12 +11,14 @@ import { TodoBoard } from './components/tasks/TodoBoard';
 import { SettingsPage } from './components/settings/SettingsPage';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { StandupPage } from './components/standup/StandupPage';
+import { SprintsPage } from './components/sprints/SprintsPage';
 import { useTabStore } from './stores/tabStore';
 import { useSettingsStore } from './stores/settingsStore';
 
 const PAGE_MAP: Record<string, { component: React.ReactNode; label: string }> = {
   '/todo': { component: <TodoBoard />, label: '待办任务' },
   '/tasks': { component: <TaskList />, label: '任务列表' },
+  '/sprints': { component: <SprintsPage />, label: '迭代管理' },
   '/calendar': { component: <CalendarView />, label: '日历视图' },
   '/developers': { component: <DeveloperList />, label: '开发成员' },
   '/schedule': { component: <DeveloperSchedule />, label: '个人日程' },

@@ -47,6 +47,7 @@ pub fn run() {
             // Sprint commands
             commands::sprint_commands::list_sprints,
             commands::sprint_commands::create_sprint,
+            commands::sprint_commands::update_sprint,
             commands::sprint_commands::delete_sprint,
             commands::sprint_commands::list_projects,
             commands::sprint_commands::create_project,

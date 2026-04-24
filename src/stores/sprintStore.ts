@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { sprintApi, projectApi } from '../lib/api';
-import type { Sprint, Project, CreateSprintDto } from '../lib/types';
+import type { Sprint, Project, CreateSprintDto, UpdateSprintDto } from '../lib/types';
 
 interface SprintState {
   sprints: Sprint[];
@@ -11,7 +11,9 @@ interface SprintState {
   fetchSprints: () => Promise<void>;
   fetchProjects: () => Promise<void>;
   createSprint: (dto: CreateSprintDto) => Promise<number>;
-  deleteSprint: (id: number) => Promise<void>;
+  /** 更新迭代信息 by AI.Coding */
+  updateSprint: (dto: UpdateSprintDto) => Promise<Sprint>;
+  deleteSprint: (id: number) => Promise<number>;
   createProject: (dto: { name: string; code?: string; description?: string }) => Promise<number>;
 }
 
@@ -44,9 +46,18 @@ export const useSprintStore = create<SprintState>((set, get) => ({
     return id;
   },
 
-  deleteSprint: async (id) => {
-    await sprintApi.delete(id);
+  /** 更新迭代 by AI.Coding */
+  updateSprint: async (dto) => {
+    const updated = await sprintApi.update(dto);
     await get().fetchSprints();
+    return updated;
+  },
+
+  /** 删除迭代，返回解关联的任务数 by AI.Coding */
+  deleteSprint: async (id) => {
+    const result = await sprintApi.delete(id);
+    await get().fetchSprints();
+    return result.unlinked_tasks;
   },
 
   createProject: async (dto) => {

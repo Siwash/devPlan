@@ -40,12 +40,60 @@ pub fn get_all(conn: &Connection, filter: &TaskFilter) -> Result<Vec<Task>> {
         param_idx += 1;
     }
     if let Some(ref search) = filter.search {
+        // 修复：三个 LIKE 共享同一参数值但需要三个占位符 by AI.Coding
+        let p1 = param_idx;
+        let p2 = param_idx + 1;
+        let p3 = param_idx + 2;
         sql.push_str(&format!(
             " AND (t.name LIKE ?{} OR t.description LIKE ?{} OR t.external_id LIKE ?{})",
-            param_idx, param_idx, param_idx
+            p1, p2, p3
         ));
-        param_values.push(Box::new(format!("%{}%", search)));
-        let _ = param_idx;
+        let search_val = format!("%{}%", search);
+        param_values.push(Box::new(search_val.clone()));
+        param_values.push(Box::new(search_val.clone()));
+        param_values.push(Box::new(search_val));
+        param_idx += 3;
+    }
+
+    // 日期范围过滤 by AI.Coding
+    if let Some(ref start_date) = filter.start_date {
+        if let Some(ref end_date) = filter.end_date {
+            // 双侧交叉命中：planned_start <= end AND planned_end >= start
+            sql.push_str(&format!(
+                " AND t.planned_start <= ?{} AND t.planned_end >= ?{}",
+                param_idx, param_idx + 1
+            ));
+            param_values.push(Box::new(end_date.clone()));
+            param_values.push(Box::new(start_date.clone()));
+            param_idx += 2;
+        } else {
+            // 仅有起始日期：planned_start >= start
+            sql.push_str(&format!(" AND t.planned_start >= ?{}", param_idx));
+            param_values.push(Box::new(start_date.clone()));
+            param_idx += 1;
+        }
+    } else if let Some(ref end_date) = filter.end_date {
+        // 仅有结束日期：planned_end <= end
+        sql.push_str(&format!(" AND t.planned_end <= ?{}", param_idx));
+        param_values.push(Box::new(end_date.clone()));
+        param_idx += 1;
+    }
+
+    // 按ID列表精确过滤 by AI.Coding
+    if let Some(ref task_ids) = filter.task_ids {
+        if task_ids.is_empty() {
+            // 空数组 → 无匹配
+            sql.push_str(" AND 1=0");
+        } else {
+            let placeholders: Vec<String> = (0..task_ids.len())
+                .map(|i| format!("?{}", param_idx + i))
+                .collect();
+            sql.push_str(&format!(" AND t.id IN ({})", placeholders.join(", ")));
+            for id in task_ids {
+                param_values.push(Box::new(*id));
+            }
+            param_idx += task_ids.len();
+        }
     }
 
     // Default ordering: planned_start ascending (nulls last), then id descending

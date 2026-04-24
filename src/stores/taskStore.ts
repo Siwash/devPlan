@@ -9,11 +9,15 @@ interface TaskState {
   filter: TaskFilter;
   selectedTask: Task | null;
   taskCount: number;
+  /** 任务列表行选中keys by AI.Coding */
+  selectedRowKeys: React.Key[];
 
   setFilter: (filter: TaskFilter) => void;
   fetchTasks: (filter?: TaskFilter) => Promise<void>;
   fetchTaskCount: () => Promise<void>;
   selectTask: (task: Task | null) => void;
+  /** 设置行选中keys by AI.Coding */
+  setSelectedRowKeys: (keys: React.Key[]) => void;
   createTask: (dto: CreateTaskDto) => Promise<number>;
   updateTask: (dto: UpdateTaskDto) => Promise<void>;
   deleteTask: (id: number) => Promise<void>;
@@ -26,6 +30,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   filter: {},
   selectedTask: null,
   taskCount: 0,
+  selectedRowKeys: [],
 
   setFilter: (filter) => {
     set({ filter });
@@ -50,6 +55,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   },
 
   selectTask: (task) => set({ selectedTask: task }),
+
+  /** 设置行选中keys by AI.Coding */
+  setSelectedRowKeys: (keys) => set({ selectedRowKeys: keys }),
 
   createTask: async (dto) => {
     const id = await taskApi.create(dto);

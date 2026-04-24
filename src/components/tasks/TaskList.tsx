@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Button, Space, Input, Select, message, Popconfirm, Typography, Modal } from 'antd';
+import { Button, Space, Input, Select, DatePicker, message, Popconfirm, Typography, Modal } from 'antd';
 import { PlusOutlined, SearchOutlined, DeleteOutlined, ExportOutlined, ReloadOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { useTaskStore } from '../../stores/taskStore';
 import { useDeveloperStore } from '../../stores/developerStore';
 import { useSprintStore } from '../../stores/sprintStore';
@@ -21,13 +22,12 @@ const PASTE_FIELDS = [
 ];
 
 export const TaskList: React.FC = () => {
-  const { tasks, loading, filter, fetchTasks, createTask, updateTask, deleteTask, taskCount, fetchTaskCount } = useTaskStore();
+  const { tasks, loading, filter, fetchTasks, createTask, updateTask, deleteTask, taskCount, fetchTaskCount, selectedRowKeys, setSelectedRowKeys } = useTaskStore();
   const { developers, fetchDevelopers } = useDeveloperStore();
   const { sprints, fetchSprints } = useSprintStore();
   const isFullscreen = useTabStore((s) => s.isFullscreen);
   const toggleFullscreen = useTabStore((s) => s.toggleFullscreen);
   const [exportVisible, setExportVisible] = useState(false);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [batchDeleting, setBatchDeleting] = useState(false);
   const [localFilter, setLocalFilter] = useState<TaskFilter>({});
   const [highlightedIds, setHighlightedIds] = useState<number[]>([]);
@@ -53,6 +53,11 @@ export const TaskList: React.FC = () => {
   }, [isFullscreen, toggleFullscreen]);
 
   const handleSearch = () => {
+    // 日期范围校验 by AI.Coding
+    if (localFilter.start_date && localFilter.end_date && localFilter.start_date > localFilter.end_date) {
+      message.warning('开始日期不能晚于结束日期');
+      return;
+    }
     useTaskStore.getState().setFilter(localFilter);
     fetchTasks(localFilter);
     fetchTaskCount();
@@ -230,7 +235,20 @@ export const TaskList: React.FC = () => {
           options={sprints.map(s => ({ label: s.name, value: s.id }))}
           onChange={(v) => setLocalFilter({ ...localFilter, sprint_id: v })}
         />
-        <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+        {/* 日期范围筛选器（支持单侧选择）by AI.Coding */}
+        <DatePicker
+          placeholder="开始日期"
+          value={localFilter.start_date ? dayjs(localFilter.start_date) : undefined}
+          onChange={(d) => setLocalFilter({ ...localFilter, start_date: d?.format('YYYY-MM-DD') || undefined })}
+        />
+        <DatePicker
+          placeholder="结束日期"
+          value={localFilter.end_date ? dayjs(localFilter.end_date) : undefined}
+          onChange={(d) => setLocalFilter({ ...localFilter, end_date: d?.format('YYYY-MM-DD') || undefined })}
+        />
+        <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}
+          disabled={!!localFilter.start_date && !!localFilter.end_date && localFilter.start_date > localFilter.end_date}
+        >
           查询
         </Button>
         <Button icon={<ReloadOutlined />} onClick={handleReset}>
@@ -268,6 +286,8 @@ export const TaskList: React.FC = () => {
         initialFilter={filter}
         defaultSprintName={currentSprintName}
         mergedTaskCount={tasks.length}
+        selectedRowKeys={selectedRowKeys as number[]}
+        onClearSelected={() => setSelectedRowKeys([])}
       />
     </div>
   );

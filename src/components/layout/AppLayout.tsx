@@ -11,6 +11,7 @@ import {
   CheckSquareOutlined,
   RobotOutlined,
   CommentOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { TabBar } from './TabBar';
@@ -22,6 +23,7 @@ const { Header, Sider, Content } = Layout;
 const menuItems = [
   { key: '/todo', icon: <CheckSquareOutlined />, label: '待办任务' },
   { key: '/tasks', icon: <UnorderedListOutlined />, label: '任务列表' },
+  { key: '/sprints', icon: <ThunderboltOutlined />, label: '迭代管理' },
   { key: '/calendar', icon: <CalendarOutlined />, label: '日历视图' },
   { key: '/developers', icon: <TeamOutlined />, label: '开发成员' },
   { key: '/schedule', icon: <ScheduleOutlined />, label: '个人日程' },
@@ -33,6 +35,7 @@ const menuItems = [
 const MENU_LABEL_MAP: Record<string, string> = {
   '/todo': '待办任务',
   '/tasks': '任务列表',
+  '/sprints': '迭代管理',
   '/calendar': '日历视图',
   '/developers': '开发成员',
   '/schedule': '个人日程',

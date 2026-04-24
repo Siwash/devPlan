@@ -75,4 +75,10 @@ pub struct TaskFilter {
     pub task_type: Option<String>,
     pub priority: Option<String>,
     pub search: Option<String>,
+    /// 日期范围起始，交叉命中：planned_start <= end_date by AI.Coding
+    pub start_date: Option<String>,
+    /// 日期范围结束，交叉命中：planned_end >= start_date by AI.Coding
+    pub end_date: Option<String>,
+    /// 按ID列表精确过滤 by AI.Coding
+    pub task_ids: Option<Vec<i64>>,
 }

@@ -69,6 +69,12 @@ export interface TaskFilter {
   task_type?: string;
   priority?: string;
   search?: string;
+  /** 日期范围起始，交叉命中 by AI.Coding */
+  start_date?: string;
+  /** 日期范围结束，交叉命中 by AI.Coding */
+  end_date?: string;
+  /** 按ID列表精确过滤 by AI.Coding */
+  task_ids?: number[];
 }
 
 // Developer types
@@ -108,6 +114,8 @@ export interface Sprint {
   start_date?: string;
   end_date?: string;
   phase?: string;
+  /** 关联任务数（查询时计算）by AI.Coding */
+  task_count?: number;
 }
 
 export interface Project {
@@ -123,6 +131,21 @@ export interface CreateSprintDto {
   start_date?: string;
   end_date?: string;
   phase?: string;
+}
+
+/** 迭代更新 DTO by AI.Coding */
+export interface UpdateSprintDto {
+  id: number;
+  name?: string;
+  start_date?: string;
+  end_date?: string;
+  phase?: string;
+}
+
+/** 删除迭代返回结果 by AI.Coding */
+export interface DeleteSprintResult {
+  deleted: boolean;
+  unlinked_tasks: number;
 }
 
 // Calendar types
